@@ -1,0 +1,563 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		D65B5EB62E3FEE4400DD4F19 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D65B5EA02E3FEE3E00DD4F19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D65B5EA72E3FEE3E00DD4F19;
+			remoteInfo = "UK FTL Calc";
+		};
+		D65B5EC02E3FEE4400DD4F19 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D65B5EA02E3FEE3E00DD4F19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D65B5EA72E3FEE3E00DD4F19;
+			remoteInfo = "UK FTL Calc";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		D65B5EA82E3FEE3E00DD4F19 /* UK FTL Calc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "UK FTL Calc.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D65B5EB52E3FEE4400DD4F19 /* UK FTL CalcTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "UK FTL CalcTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D65B5EBF2E3FEE4400DD4F19 /* UK FTL CalcUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "UK FTL CalcUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		D65B5EAA2E3FEE3E00DD4F19 /* UK FTL Calc */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "UK FTL Calc";
+			sourceTree = "<group>";
+		};
+		D65B5EB82E3FEE4400DD4F19 /* UK FTL CalcTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "UK FTL CalcTests";
+			sourceTree = "<group>";
+		};
+		D65B5EC22E3FEE4400DD4F19 /* UK FTL CalcUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "UK FTL CalcUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D65B5EA52E3FEE3E00DD4F19 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D65B5EB22E3FEE4400DD4F19 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D65B5EBC2E3FEE4400DD4F19 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D65B5E9F2E3FEE3E00DD4F19 = {
+			isa = PBXGroup;
+			children = (
+				D65B5EAA2E3FEE3E00DD4F19 /* UK FTL Calc */,
+				D65B5EB82E3FEE4400DD4F19 /* UK FTL CalcTests */,
+				D65B5EC22E3FEE4400DD4F19 /* UK FTL CalcUITests */,
+				D65B5EA92E3FEE3E00DD4F19 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D65B5EA92E3FEE3E00DD4F19 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D65B5EA82E3FEE3E00DD4F19 /* UK FTL Calc.app */,
+				D65B5EB52E3FEE4400DD4F19 /* UK FTL CalcTests.xctest */,
+				D65B5EBF2E3FEE4400DD4F19 /* UK FTL CalcUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D65B5EA72E3FEE3E00DD4F19 /* UK FTL Calc */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D65B5EC92E3FEE4500DD4F19 /* Build configuration list for PBXNativeTarget "UK FTL Calc" */;
+			buildPhases = (
+				D65B5EA42E3FEE3E00DD4F19 /* Sources */,
+				D65B5EA52E3FEE3E00DD4F19 /* Frameworks */,
+				D65B5EA62E3FEE3E00DD4F19 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D65B5EAA2E3FEE3E00DD4F19 /* UK FTL Calc */,
+			);
+			name = "UK FTL Calc";
+			packageProductDependencies = (
+			);
+			productName = "UK FTL Calc";
+			productReference = D65B5EA82E3FEE3E00DD4F19 /* UK FTL Calc.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D65B5EB42E3FEE4400DD4F19 /* UK FTL CalcTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D65B5ECC2E3FEE4500DD4F19 /* Build configuration list for PBXNativeTarget "UK FTL CalcTests" */;
+			buildPhases = (
+				D65B5EB12E3FEE4400DD4F19 /* Sources */,
+				D65B5EB22E3FEE4400DD4F19 /* Frameworks */,
+				D65B5EB32E3FEE4400DD4F19 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D65B5EB72E3FEE4400DD4F19 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D65B5EB82E3FEE4400DD4F19 /* UK FTL CalcTests */,
+			);
+			name = "UK FTL CalcTests";
+			packageProductDependencies = (
+			);
+			productName = "UK FTL CalcTests";
+			productReference = D65B5EB52E3FEE4400DD4F19 /* UK FTL CalcTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		D65B5EBE2E3FEE4400DD4F19 /* UK FTL CalcUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D65B5ECF2E3FEE4500DD4F19 /* Build configuration list for PBXNativeTarget "UK FTL CalcUITests" */;
+			buildPhases = (
+				D65B5EBB2E3FEE4400DD4F19 /* Sources */,
+				D65B5EBC2E3FEE4400DD4F19 /* Frameworks */,
+				D65B5EBD2E3FEE4400DD4F19 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D65B5EC12E3FEE4400DD4F19 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D65B5EC22E3FEE4400DD4F19 /* UK FTL CalcUITests */,
+			);
+			name = "UK FTL CalcUITests";
+			packageProductDependencies = (
+			);
+			productName = "UK FTL CalcUITests";
+			productReference = D65B5EBF2E3FEE4400DD4F19 /* UK FTL CalcUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D65B5EA02E3FEE3E00DD4F19 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					D65B5EA72E3FEE3E00DD4F19 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					D65B5EB42E3FEE4400DD4F19 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = D65B5EA72E3FEE3E00DD4F19;
+					};
+					D65B5EBE2E3FEE4400DD4F19 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = D65B5EA72E3FEE3E00DD4F19;
+					};
+				};
+			};
+			buildConfigurationList = D65B5EA32E3FEE3E00DD4F19 /* Build configuration list for PBXProject "UK FTL Calc" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D65B5E9F2E3FEE3E00DD4F19;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D65B5EA92E3FEE3E00DD4F19 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D65B5EA72E3FEE3E00DD4F19 /* UK FTL Calc */,
+				D65B5EB42E3FEE4400DD4F19 /* UK FTL CalcTests */,
+				D65B5EBE2E3FEE4400DD4F19 /* UK FTL CalcUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D65B5EA62E3FEE3E00DD4F19 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D65B5EB32E3FEE4400DD4F19 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D65B5EBD2E3FEE4400DD4F19 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D65B5EA42E3FEE3E00DD4F19 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D65B5EB12E3FEE4400DD4F19 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D65B5EBB2E3FEE4400DD4F19 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D65B5EB72E3FEE4400DD4F19 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D65B5EA72E3FEE3E00DD4F19 /* UK FTL Calc */;
+			targetProxy = D65B5EB62E3FEE4400DD4F19 /* PBXContainerItemProxy */;
+		};
+		D65B5EC12E3FEE4400DD4F19 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D65B5EA72E3FEE3E00DD4F19 /* UK FTL Calc */;
+			targetProxy = D65B5EC02E3FEE4400DD4F19 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		D65B5EC72E3FEE4500DD4F19 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		D65B5EC82E3FEE4500DD4F19 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D65B5ECA2E3FEE4500DD4F19 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.UK-FTL-Calc";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D65B5ECB2E3FEE4500DD4F19 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.UK-FTL-Calc";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D65B5ECD2E3FEE4500DD4F19 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.UK-FTL-CalcTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UK FTL Calc.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/UK FTL Calc";
+			};
+			name = Debug;
+		};
+		D65B5ECE2E3FEE4500DD4F19 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.UK-FTL-CalcTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UK FTL Calc.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/UK FTL Calc";
+			};
+			name = Release;
+		};
+		D65B5ED02E3FEE4500DD4F19 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.UK-FTL-CalcUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "UK FTL Calc";
+			};
+			name = Debug;
+		};
+		D65B5ED12E3FEE4500DD4F19 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6T973K59DJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.UK-FTL-CalcUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "UK FTL Calc";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D65B5EA32E3FEE3E00DD4F19 /* Build configuration list for PBXProject "UK FTL Calc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D65B5EC72E3FEE4500DD4F19 /* Debug */,
+				D65B5EC82E3FEE4500DD4F19 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D65B5EC92E3FEE4500DD4F19 /* Build configuration list for PBXNativeTarget "UK FTL Calc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D65B5ECA2E3FEE4500DD4F19 /* Debug */,
+				D65B5ECB2E3FEE4500DD4F19 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D65B5ECC2E3FEE4500DD4F19 /* Build configuration list for PBXNativeTarget "UK FTL CalcTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D65B5ECD2E3FEE4500DD4F19 /* Debug */,
+				D65B5ECE2E3FEE4500DD4F19 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D65B5ECF2E3FEE4500DD4F19 /* Build configuration list for PBXNativeTarget "UK FTL CalcUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D65B5ED02E3FEE4500DD4F19 /* Debug */,
+				D65B5ED12E3FEE4500DD4F19 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D65B5EA02E3FEE3E00DD4F19 /* Project object */;
+}
