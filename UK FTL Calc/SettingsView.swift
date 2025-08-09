@@ -123,15 +123,15 @@ struct DailyLimitsView: View {
             
             Section("Rest Requirements") {
                 LimitRow(
-                    title: "Standard Rest Period",
-                    value: "11 hours",
-                    description: "Minimum rest period required after duty"
+                    title: "At Home Base",
+                    value: "12 hours",
+                    description: "Minimum rest period when returning to home base"
                 )
                 
                 LimitRow(
-                    title: "Reduced Rest Period",
+                    title: "Away From Base",
                     value: "10 hours",
-                    description: "Reduced rest period (with conditions)"
+                    description: "Minimum rest period when away from base"
                 )
             }
         }
@@ -209,38 +209,30 @@ struct MonthlyLimitsView: View {
 struct RestPeriodsView: View {
     var body: some View {
         List {
-            Section("Standard Rest Periods") {
+            Section("Rest Period Requirements") {
                 LimitRow(
-                    title: "Standard Rest Period",
-                    value: "11 hours",
-                    description: "Minimum rest period required after duty"
+                    title: "At Home Base",
+                    value: "12 hours",
+                    description: "Minimum rest period when returning to home base (or as long as duty, whichever is greater)"
                 )
                 
                 LimitRow(
-                    title: "Reduced Rest Period",
+                    title: "Away From Base",
                     value: "10 hours",
-                    description: "Reduced rest period (with conditions)"
+                    description: "Minimum rest period when away from base (or as long as duty, whichever is greater)"
                 )
             }
             
-            Section("Rest Period Conditions") {
+            Section("Rest Period Rules") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Reduced rest periods (10 hours) may be used when:")
+                    Text("Rest period must be the greater of:")
                         .font(.headline)
                     
-                    Text("• Duty time does not exceed 10 hours")
-                    Text("• Not more than 3 reduced rest periods in any 7 consecutive days")
-                    Text("• Compensatory rest is provided")
+                    Text("• The minimum rest period for the location")
+                    Text("• The duration of the preceding duty period")
+                    Text("• Additional rest may be required for extended duty periods")
                 }
                 .padding(.vertical, 8)
-            }
-            
-            Section("Compensatory Rest") {
-                LimitRow(
-                    title: "Compensatory Rest",
-                    value: "12 hours",
-                    description: "Extended rest period to compensate for reduced rest"
-                )
             }
         }
         .navigationTitle("Rest Periods")

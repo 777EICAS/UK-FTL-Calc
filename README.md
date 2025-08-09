@@ -8,7 +8,7 @@ A comprehensive iOS app for calculating Flight Time Limitations (FTL) compliance
 - **Daily Limits**: Maximum 13 hours duty time, 8-10 hours flight time
 - **Weekly Limits**: Maximum 60 hours duty time, 56 hours flight time  
 - **Monthly Limits**: Maximum 190 hours duty time, 100 hours flight time
-- **Rest Periods**: Standard 11 hours, reduced 10 hours with conditions
+- **Rest Periods**: 12 hours at home base, 10 hours away from base (or duty duration, whichever is greater)
 - **Consecutive Duty Days**: Maximum 6 consecutive duty days
 
 ### 📱 User Interface
@@ -38,7 +38,7 @@ A comprehensive iOS app for calculating Flight Time Limitations (FTL) compliance
 - **Maximum Duty Time**: 13 hours in any 24-hour period
 - **Single Pilot Operations**: Maximum 8 hours flight time
 - **Multi-Pilot Operations**: Maximum 10 hours flight time
-- **Rest Period**: Minimum 11 hours (10 hours with conditions)
+- **Rest Period**: 12 hours at home base, 10 hours away from base (or duty duration, whichever is greater)
 
 ### Weekly Limits
 - **Maximum Duty Time**: 60 hours in any 7 consecutive days

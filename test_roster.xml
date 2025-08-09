@@ -1,0 +1,38 @@
+[ROSTER]
+[TRIP]
+<Trip>
+    <TripNumber>T7165</TripNumber>
+    <StartDate>2025-08-05</StartDate>
+    <CrewComplements>
+        <heavyCrew>0</heavyCrew>
+        <standardCrew>2</standardCrew>
+    </CrewComplements>
+    <Duty>
+        <DutyNumber>D1</DutyNumber>
+        <ActualReportTime>15:35</ActualReportTime>
+        <DutyHours>PT08H25M</DutyHours>
+        <Sector>
+            <FlightNumber>179</FlightNumber>
+            <DepartureStation>LHR</DepartureStation>
+            <ArrivalStation>JFK</ArrivalStation>
+            <PlannedDepartureTime>17:05</PlannedDepartureTime>
+            <PlannedArrivalTime>01:00</PlannedArrivalTime>
+            <RelativeDepartureDay>0</RelativeDepartureDay>
+            <FlyingHours>PT07H55M</FlyingHours>
+        </Sector>
+    </Duty>
+    <Duty>
+        <DutyNumber>D2</DutyNumber>
+        <ActualReportTime>23:05</ActualReportTime>
+        <DutyHours>PT07H35M</DutyHours>
+        <Sector>
+            <FlightNumber>114</FlightNumber>
+            <DepartureStation>JFK</DepartureStation>
+            <ArrivalStation>LHR</ArrivalStation>
+            <PlannedDepartureTime>01:30</PlannedDepartureTime>
+            <PlannedArrivalTime>08:40</PlannedArrivalTime>
+            <RelativeDepartureDay>1</RelativeDepartureDay>
+            <FlyingHours>PT07H10M</FlyingHours>
+        </Sector>
+    </Duty>
+</Trip>

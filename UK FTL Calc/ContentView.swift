@@ -13,8 +13,10 @@ struct ContentView: View {
     @State private var showingCalendarImport = false
     @State private var showingSettings = false
 
-    @State private var showingPDFUpload = false
+    @State private var showingFileUpload = false
     @State private var showingFTLFactors = false
+    @State private var showingFlightSelection = false
+
     @State private var selectedTab = 0
     @State private var showingAugmentedCrewPopup = false
     @State private var showingAcclimatisedPopup = false
@@ -89,6 +91,63 @@ struct ContentView: View {
         }
     }
     
+    // MARK: - Trip Context Detection
+    // Treat London bases (LHR/LGW/STN) as a single home-base group for context
+    private func isHomeBaseEquivalent(_ airport: String, homeBase: String) -> Bool {
+        let londonBases: Set<String> = ["LHR", "LGW", "STN"]
+        let ap = airport.uppercased()
+        let hb = homeBase.uppercased()
+        return ap == hb || (londonBases.contains(ap) && londonBases.contains(hb))
+    }
+    private func detectAndSetTripContext(selectedFlight: FlightRecord, allFlights: [FlightRecord]) {
+        // Look for the outbound flight (first flight of the trip) that matches this inbound flight
+        // For JFK-LHR, we're looking for LHR-JFK in the same trip
+        
+        let homeBase = viewModel.homeBase
+        let selectedDeparture = selectedFlight.departure
+        let selectedArrival = selectedFlight.arrival
+        
+        print("DEBUG: Trip context detection for \(selectedFlight.flightNumber) (\(selectedDeparture)-\(selectedArrival))")
+        print("DEBUG: Home base: \(homeBase)")
+        print("DEBUG: Selected flight trip number: \(selectedFlight.tripNumber)")
+        
+        // If this is an inbound flight (returning to home-base group), look for the corresponding outbound flight
+        if isHomeBaseEquivalent(selectedArrival, homeBase: homeBase) && !isHomeBaseEquivalent(selectedDeparture, homeBase: homeBase) {
+            print("DEBUG: Detected inbound flight - looking for corresponding outbound flight")
+            
+            // Find the outbound flight that matches this trip
+            // Look for a flight that departs from home base and arrives at the current departure airport
+            // AND is in the same trip
+            let outboundFlight = allFlights.first { flight in
+                isHomeBaseEquivalent(flight.departure, homeBase: homeBase) &&
+                flight.arrival.uppercased() == selectedDeparture.uppercased() &&
+                flight.tripNumber == selectedFlight.tripNumber &&
+                flight.isOutbound // Ensure we're getting the outbound sector
+            }
+            
+            if let outboundFlight = outboundFlight {
+                print("DEBUG: Found corresponding outbound flight: \(outboundFlight.flightNumber) (\(outboundFlight.departure)-\(outboundFlight.arrival))")
+                print("DEBUG: Outbound report time: \(outboundFlight.reportTime)")
+                print("DEBUG: Outbound flight trip number: \(outboundFlight.tripNumber)")
+                
+                // Set the original home base report time for acclimatisation calculations
+                viewModel.setOriginalHomeBaseReportTime(outboundFlight.reportTime)
+                
+                print("DEBUG: Set original home base report time to: \(outboundFlight.reportTime)")
+                print("DEBUG: This will calculate elapsed time from \(outboundFlight.reportTime) to \(selectedFlight.reportTime)")
+            } else {
+                print("DEBUG: No corresponding outbound flight found in same trip - treating as standalone flight")
+                print("DEBUG: Available flights in same trip:")
+                let sameTripFlights = allFlights.filter { $0.tripNumber == selectedFlight.tripNumber }
+                for flight in sameTripFlights {
+                    print("DEBUG:   \(flight.flightNumber) \(flight.departure)-\(flight.arrival) (outbound: \(flight.isOutbound))")
+                }
+            }
+        } else {
+            print("DEBUG: Not an inbound to home-base group or departure from home base - no trip context needed")
+        }
+    }
+    
     // MARK: - Helper Functions
     private func calculateTimeZoneDifference() {
         guard !viewModel.departure.isEmpty,
@@ -97,17 +156,86 @@ struct ContentView: View {
             return
         }
         
-        // Calculate time zone difference from departure airport to arrival airport
-        // Convert to uppercase to match the airport codes in the function
+        // Calculate time zone difference for acclimatisation purposes
+        // For Table 1: Reference time is from trip start location (home base)
+        // Local time is from current duty start location (current departure airport)
         let departure = viewModel.departure.uppercased()
-        let arrival = viewModel.arrival.uppercased()
+        let homeBase = viewModel.homeBase.uppercased()
         
-        print("DEBUG: Calculating TZ diff from '\(departure)' to '\(arrival)'")
+        // Determine first sector status BEFORE computing elapsed time (treat London bases as one)
+        viewModel.ftlFactors.isFirstSector = isHomeBaseEquivalent(departure, homeBase: homeBase)
         
-        let timeZoneDiff = TimeUtilities.getTimeZoneDifference(from: departure, to: arrival)
+        // For acclimatisation: time zone difference is from reference location (home base) to current duty start location
+        let timeZoneDiff = TimeUtilities.getTimeZoneDifference(from: homeBase, to: departure)
+        print("DEBUG: Calculating TZ diff from reference location '\(homeBase)' to current duty start location '\(departure)' for acclimatisation")
         print("DEBUG: Time zone difference result: \(timeZoneDiff)")
         
         viewModel.ftlFactors.timeZoneDifference = timeZoneDiff
+        
+        // Calculate elapsed time since original home base reporting (for acclimatisation purposes)
+        let elapsedTime: Double
+        if viewModel.ftlFactors.isFirstSector {
+            // First sector: elapsed time is 0 hours (trip hasn't started yet)
+            elapsedTime = 0.0
+            // Store the original home base report time for future sectors
+            viewModel.ftlFactors.originalHomeBaseReportTime = viewModel.reportTime
+            print("DEBUG: First sector - elapsed time set to 0 hours")
+        } else {
+            // Check if we have a pre-calculated elapsed time from imported XML data
+            if let currentFlight = viewModel.allImportedFlights.first(where: { $0.flightNumber == viewModel.flightNumber }) {
+                // Use the pre-calculated elapsed time from the XML parser
+                elapsedTime = currentFlight.elapsedTimeHours
+                print("DEBUG: Using pre-calculated elapsed time from XML: \(elapsedTime) hours")
+                print("DEBUG: Flight details - Trip: \(currentFlight.tripNumber), Outbound: \(currentFlight.isOutbound)")
+                
+                // Validate the pre-calculated elapsed time
+                if currentFlight.isOutbound && elapsedTime != 0.0 {
+                    print("DEBUG: WARNING - Outbound flight has non-zero elapsed time: \(elapsedTime)h (should be 0)")
+                }
+            } else {
+                // Manual flight entry: calculate elapsed time manually
+                if !viewModel.ftlFactors.originalHomeBaseReportTime.isEmpty {
+                    // Use date-aware calculation if we have the outbound flight information
+                    if let outboundFlight = viewModel.allImportedFlights.first(where: { flight in
+                        isHomeBaseEquivalent(flight.departure, homeBase: viewModel.homeBase) &&
+                        flight.arrival.uppercased() == viewModel.departure.uppercased()
+                    }) {
+                        // Calculate elapsed time using date information
+                        elapsedTime = TimeUtilities.calculateElapsedTimeWithDates(
+                            startDate: outboundFlight.date,
+                            startTime: viewModel.ftlFactors.originalHomeBaseReportTime,
+                            endDate: viewModel.allImportedFlights.first(where: { $0.flightNumber == viewModel.flightNumber })?.date ?? "",
+                            endTime: viewModel.reportTime
+                        )
+                        print("DEBUG: Using date-aware elapsed time calculation: \(elapsedTime) hours")
+                    } else {
+                        // Fallback to time-only calculation
+                        elapsedTime = TimeUtilities.calculateHoursBetween(viewModel.ftlFactors.originalHomeBaseReportTime, viewModel.reportTime)
+                        print("DEBUG: Using fallback time-only elapsed time calculation: \(elapsedTime) hours")
+                    }
+                } else {
+                    // Fallback: use current sector's elapsed time
+                    elapsedTime = TimeUtilities.calculateHoursBetween(viewModel.reportTime, viewModel.dutyEndTime)
+                }
+            }
+        }
+        viewModel.ftlFactors.elapsedTimeHours = elapsedTime
+        
+        // Re-affirm first sector flag using home-base equivalence
+        viewModel.ftlFactors.isFirstSector = isHomeBaseEquivalent(departure, homeBase: viewModel.homeBase)
+        
+        // Automatically determine acclimatisation status based on UK CAA Table 1 regulations
+        let acclimatisationStatus = UKCAALimits.determineAcclimatisationStatus(
+            timeZoneDifference: timeZoneDiff,
+            elapsedTimeHours: viewModel.ftlFactors.elapsedTimeHours,
+            isFirstSector: viewModel.ftlFactors.isFirstSector,
+            homeBase: viewModel.homeBase,
+            departure: departure
+        )
+        viewModel.ftlFactors.isAcclimatised = acclimatisationStatus.isAcclimatised
+        viewModel.ftlFactors.shouldBeAcclimatised = acclimatisationStatus.shouldBeAcclimatised
+        
+        print("DEBUG: Auto-determined acclimatisation - Time zone diff: \(timeZoneDiff)h, Elapsed: \(viewModel.ftlFactors.elapsedTimeHours)h, First sector: \(viewModel.ftlFactors.isFirstSector), Reason: \(acclimatisationStatus.reason)")
     }
     
     private var mainCalculatorView: some View {
@@ -184,7 +312,9 @@ struct ContentView: View {
                     hasAugmentedCrew: $viewModel.ftlFactors.hasAugmentedCrew,
                     hasInFlightRest: $viewModel.ftlFactors.hasInFlightRest,
                     isPresented: $showingAugmentedCrewPopup,
-                    numberOfAdditionalPilots: $viewModel.ftlFactors.numberOfAdditionalPilots
+                    numberOfAdditionalPilots: $viewModel.ftlFactors.numberOfAdditionalPilots,
+                    takeoffTime: viewModel.takeoffTime,
+                    landingTime: viewModel.landingTime
                 )
             }
             .sheet(isPresented: $showingAcclimatisedPopup) {
@@ -205,11 +335,15 @@ struct ContentView: View {
             .sheet(isPresented: $showingFTLFactors) {
                 FTLFactorsView(viewModel: viewModel)
             }
-            .sheet(isPresented: $showingPDFUpload) {
-                PDFUploadView { parsedFlights in
-                    // Handle parsed flights for the main calculator
-                    print("DEBUG: PDF Upload - Received \(parsedFlights.count) flights")
-                    if let firstFlight = parsedFlights.first {
+            .sheet(isPresented: $showingFileUpload) {
+                FileUploadView { selectedFlights, allFlights in
+                    // Always import all flights from the PDF for trip context
+                    print("DEBUG: PDF Upload - Received \(selectedFlights.count) selected flights from \(allFlights.count) total flights")
+                    
+                    // Store all flights in the view model for trip context detection
+                    viewModel.allImportedFlights = allFlights
+                    
+                    if let firstFlight = selectedFlights.first {
                         print("DEBUG: PDF Upload - First flight data:")
                         print("  flightNumber: '\(firstFlight.flightNumber)'")
                         print("  departure: '\(firstFlight.departure)'")
@@ -229,7 +363,7 @@ struct ContentView: View {
                         // Adjust report time for LGW/LHR arrivals (75 minutes before takeoff)
                         if firstFlight.arrival == "LGW" || firstFlight.arrival == "LHR" {
                             let reportTime = TimeUtilities.addHours(firstFlight.takeoffTime, hours: -1.25) // 75 minutes = 1.25 hours
-                            viewModel.reportTime = reportTime
+                            viewModel.reportTime = reportTime + "z" // Ensure z suffix is preserved
                             print("DEBUG: LGW/LHR arrival - Adjusted report time to 75 minutes before takeoff")
                             print("DEBUG: Takeoff time: \(firstFlight.takeoffTime) -> Report time: \(viewModel.reportTime)")
                         } else {
@@ -240,6 +374,12 @@ struct ContentView: View {
                         viewModel.takeoffTime = firstFlight.takeoffTime
                         viewModel.landingTime = firstFlight.landingTime
                         viewModel.dutyEndTime = firstFlight.dutyEndTime
+                        
+                        // Auto-detect trip context and set original home base report time
+                        detectAndSetTripContext(selectedFlight: firstFlight, allFlights: allFlights)
+                        
+                        // Calculate time zone difference and elapsed time AFTER report time adjustment
+                        calculateTimeZoneDifference()
                         
                         // Auto-set augmented crew based on pilot count
                         print("DEBUG: Pilot count analysis for \(firstFlight.flightNumber):")
@@ -286,9 +426,317 @@ struct ContentView: View {
                         print("DEBUG: PDF Upload - No flights found in parsed data")
                     }
                     // Automatically dismiss the sheet and return to home page
-                    showingPDFUpload = false
+                    showingFileUpload = false
+                }
+
+            }
+            .sheet(isPresented: $showingFlightSelection) {
+                FlightSelectionView(
+                    allFlights: viewModel.allImportedFlights,
+                    onFlightSelected: { selectedFlight in
+                        showingFlightSelection = false
+                        viewModel.selectFlight(selectedFlight)
+                        
+                        // Auto-detect trip context and set original home base report time
+                        detectAndSetTripContext(selectedFlight: selectedFlight, allFlights: viewModel.allImportedFlights)
+                        
+                        // Calculate time zone difference and elapsed time
+                        calculateTimeZoneDifference()
+                        
+                        // Auto-set augmented crew based on pilot count
+                        if selectedFlight.pilotCount > 2 {
+                            let additionalPilots = selectedFlight.pilotCount - 2
+                            viewModel.ftlFactors.hasAugmentedCrew = true
+                            viewModel.ftlFactors.numberOfAdditionalPilots = additionalPilots
+                            viewModel.ftlFactors.hasInFlightRest = true
+                            showingAugmentedCrewPopup = true
+                        } else {
+                            viewModel.ftlFactors.hasAugmentedCrew = false
+                            viewModel.ftlFactors.numberOfAdditionalPilots = 0
+                            viewModel.ftlFactors.hasInFlightRest = false
+                        }
+                        
+                        // Trigger auto-scroll to calculate button
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            scrollToCalculateButton = true
+                        }
+                    },
+                    onCancel: {
+                        showingFlightSelection = false
+                    }
+                )
+            }
+        }
+    }
+    
+    // MARK: - Flight Selection View
+    private struct FlightSelectionView: View {
+        let allFlights: [FlightRecord]
+        let onFlightSelected: (FlightRecord) -> Void
+        let onCancel: () -> Void
+        @State private var searchText = ""
+        
+        var filteredFlights: [FlightRecord] {
+            if searchText.isEmpty {
+                return allFlights
+            } else {
+                return allFlights.filter { flight in
+                    flight.flightNumber.localizedCaseInsensitiveContains(searchText) ||
+                    flight.departure.localizedCaseInsensitiveContains(searchText) ||
+                    flight.arrival.localizedCaseInsensitiveContains(searchText) ||
+                    flight.date.localizedCaseInsensitiveContains(searchText)
                 }
             }
+        }
+        
+        var body: some View {
+            NavigationView {
+                VStack(spacing: 20) {
+                    // Header
+                    VStack(spacing: 16) {
+                        Image(systemName: "airplane.circle.fill")
+                            .font(.system(size: 50))
+                            .foregroundColor(.blue)
+                        
+                        Text("Select Flight from Roster")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Choose which flight you want to analyze for FTL calculations. All flights from your uploaded roster are available below.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        // Additional helpful message
+                        Text("💡 You can access all flights from your roster anytime using the Select Flight button - no need to re-upload!")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding(.top, 20)
+                    
+                    // Flight Count Badge
+                    HStack {
+                        Text("\(filteredFlights.count) of \(allFlights.count) flights")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.blue)
+                            .cornerRadius(12)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    
+                    // Search Bar
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        
+                        TextField("Search flights by number, route, or date...", text: $searchText)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        
+                        if !searchText.isEmpty {
+                            Button(action: {
+                                searchText = ""
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal)
+                    
+                    // Flight List
+                    if filteredFlights.isEmpty {
+                        VStack(spacing: 16) {
+                            if searchText.isEmpty {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.orange)
+                                
+                                Text("No Flights Available")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                
+                                Text("No flights were found in your uploaded roster. Please try uploading a different file.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.blue)
+                                
+                                Text("No Matching Flights")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                
+                                Text("No flights match your search for '\(searchText)'. Try a different search term.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                ForEach(filteredFlights) { flight in
+                                    FlightSelectionRow(flight: flight) {
+                                        onFlightSelected(flight)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+                .navigationBarTitleDisplayMode(.inline)
+                .navigationBarBackButtonHidden(true)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") {
+                            onCancel()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Flight Selection Row
+    private struct FlightSelectionRow: View {
+        let flight: FlightRecord
+        let onSelect: () -> Void
+        
+        var body: some View {
+            Button(action: onSelect) {
+                VStack(spacing: 12) {
+                    HStack(spacing: 16) {
+                        // Flight Icon and Route
+                        VStack(spacing: 4) {
+                            Image(systemName: "airplane")
+                                .font(.title2)
+                                .foregroundColor(.blue)
+                            
+                            // Route indicator
+                            HStack(spacing: 4) {
+                                Text(flight.departure)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                
+                                Image(systemName: "arrow.right")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                
+                                Text(flight.arrival)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                        
+                        // Flight Details
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(flight.flightNumber)
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                // Date badge
+                                Text(flight.date)
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.blue)
+                                    .cornerRadius(6)
+                            }
+                            
+                            // Times row
+                            HStack(spacing: 16) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Report")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                    Text(flight.reportTime)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Takeoff")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                    Text(flight.takeoffTime)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Landing")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                    Text(flight.landingTime)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                }
+                            }
+                            
+                            // Flight time and duty time
+                            HStack {
+                                Text("Flight: \(TimeUtilities.formatHoursAndMinutes(flight.flightTime))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Text("Duty: \(TimeUtilities.formatHoursAndMinutes(flight.dutyTime))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Selection indicator
+                        VStack {
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            
+                            Text("Select")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                                .fontWeight(.medium)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
         }
     }
     
@@ -310,22 +758,86 @@ struct ContentView: View {
                     }
                     Spacer()
                     
-
-                    
-                    // PDF Upload Button
-                    Button(action: {
-                        showingPDFUpload = true
-                    }) {
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.title)
-                            .foregroundColor(.blue)
-                            .background(
-                                Circle()
-                                    .fill(Color.blue.opacity(0.1))
-                                    .frame(width: 44, height: 44)
-                            )
+                    // Helpful message about flight selection
+                    if viewModel.hasImportedFlights {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
+                                .font(.caption)
+                            
+                            Text("Use the Select Flight button to choose from all \(viewModel.availableFlightsCount) flights in your roster")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.bottom, 8)
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    
+                    // Action Buttons with Labels
+                    VStack(spacing: 8) {
+                        HStack(spacing: 16) {
+                            // Flight Selection Button (when flights are available)
+                            if viewModel.hasImportedFlights {
+                                VStack(spacing: 4) {
+                                    Button(action: {
+                                        showingFlightSelection = true
+                                    }) {
+                                        Image(systemName: "airplane.circle")
+                                            .font(.title)
+                                            .foregroundColor(.green)
+                                            .background(
+                                                Circle()
+                                                    .fill(Color.green.opacity(0.1))
+                                                    .frame(width: 44, height: 44)
+                                            )
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .overlay(
+                                        Text("\(viewModel.availableFlightsCount)")
+                                            .font(.caption2)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.white)
+                                            .background(Color.green)
+                                            .clipShape(Circle())
+                                            .frame(width: 16, height: 16)
+                                            .offset(x: 12, y: -12)
+                                    )
+                                    
+                                    Text("Select Flight")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                }
+                            }
+                            
+                            // File Upload Button
+                            VStack(spacing: 4) {
+                                Button(action: {
+                                    showingFileUpload = true
+                                }) {
+                                    Image(systemName: "doc.badge.plus")
+                                        .font(.title)
+                                        .foregroundColor(.blue)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.blue.opacity(0.1))
+                                                .frame(width: 44, height: 44)
+                                        )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                
+                                Text("Upload Roster")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            
+
+                        }
+                    }
                 }
                 
                 // Status Badge
@@ -495,7 +1007,7 @@ struct ContentView: View {
                                     Image(systemName: "clock.badge.checkmark")
                                         .foregroundColor(.green)
                                         .font(.caption)
-                                    Text("Report Time")
+                                    Text("Report Time (Z)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -507,10 +1019,10 @@ struct ContentView: View {
                             
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
-                                    Image(systemName: "airplane.takeoff")
+                                    Image(systemName: "airplane")
                                         .foregroundColor(.blue)
                                         .font(.caption)
-                                    Text("OFF Block Time")
+                                    Text("OFF Block Time (Z)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -528,7 +1040,7 @@ struct ContentView: View {
                                     Image(systemName: "airplane.arrival")
                                         .foregroundColor(.orange)
                                         .font(.caption)
-                                    Text("ON Block Time")
+                                    Text("ON Block Time (Z)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -543,7 +1055,7 @@ struct ContentView: View {
                                     Image(systemName: "clock.badge.xmark")
                                         .foregroundColor(.red)
                                         .font(.caption)
-                                    Text("Duty End Time")
+                                    Text("Duty End Time (Z)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -744,7 +1256,7 @@ struct ContentView: View {
                             GridItem(.flexible()),
                             GridItem(.flexible())
                         ], spacing: 12) {
-                            // Augmented Crew Toggle (moved to first position)
+                            // Augmented Crew Toggle
                             VStack(spacing: 2) {
                                 Toggle("", isOn: Binding(
                                     get: { viewModel.ftlFactors.hasAugmentedCrew },
@@ -794,79 +1306,6 @@ struct ContentView: View {
                                 }
                             }
                             
-                            // Night Duty Toggle
-                            VStack(spacing: 2) {
-                                Toggle("", isOn: $viewModel.ftlFactors.isNightDuty)
-                                    .labelsHidden()
-                                    .scaleEffect(0.8)
-                                
-                                VStack(spacing: 1) {
-                                    Text("Night Duty")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                    
-                                    // Show auto-detected indicator when night duty is detected
-                                    if viewModel.ftlFactors.isNightDuty && viewModel.isNightDutyAutoDetected {
-                                        Text("Auto")
-                                            .font(.caption2)
-                                            .foregroundColor(.blue)
-                                            .fontWeight(.medium)
-                                    } else {
-                                        // Add empty space to maintain alignment when no "Auto" text
-                                        Text("")
-                                            .font(.caption2)
-                                            .opacity(0)
-                                    }
-                                }
-                            }
-                            
-                            // Acclimatised Toggle
-                            VStack(spacing: 2) {
-                                Toggle("", isOn: Binding(
-                                    get: { 
-                                        return viewModel.ftlFactors.isAcclimatised
-                                    },
-                                    set: { newValue in
-                                        if newValue {
-                                            if viewModel.ftlFactors.timeZoneDifference >= 4 {
-                                                showingAcclimatisedPopup = true
-                                            } else {
-                                                // Less than 4 hours: always acclimatised
-                                                viewModel.ftlFactors.isAcclimatised = true
-                                            }
-                                        } else {
-                                            // Allow deselection for all cases
-                                            viewModel.ftlFactors.isAcclimatised = false
-                                        }
-                                    }
-                                ))
-                                    .labelsHidden()
-                                    .scaleEffect(0.8)
-                                
-                                VStack(spacing: 1) {
-                                    Text("Acclimatised")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                    
-                                    // Show auto-selected indicator for home base departures
-                                    let departureUpper = viewModel.departure.uppercased()
-                                    let homeBaseUpper = homeBase.uppercased()
-                                    let secondHomeBaseUpper = secondHomeBase.uppercased()
-                                    
-                                    if departureUpper == homeBaseUpper || departureUpper == secondHomeBaseUpper {
-                                        Text("Auto")
-                                            .font(.caption2)
-                                            .foregroundColor(.blue)
-                                            .fontWeight(.medium)
-                                    } else {
-                                        // Add empty space to maintain alignment when no "Auto" text
-                                        Text("")
-                                            .font(.caption2)
-                                            .opacity(0)
-                                    }
-                                }
-                            }
-                            
                             // Standby Toggle
                             VStack(spacing: 2) {
                                 Toggle("", isOn: Binding(
@@ -902,30 +1341,85 @@ struct ContentView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
                     
-                    // Active Factors Summary
-                    if !viewModel.limitExplanations.isEmpty && viewModel.canCalculate {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Active Factors:")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                    // Enhanced Active Factors Summary - Only show after calculation
+                    if !viewModel.activeFactors.isEmpty && viewModel.hasCalculatedResults {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Active Factors")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                Text("\(viewModel.activeFactors.count) factors")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                             
-                            ForEach(Array(viewModel.limitExplanations), id: \.self) { explanation in
-                                HStack(alignment: .top, spacing: 4) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                        .font(.caption2)
-                                    Text(explanation)
+                            // Enhanced helpful instruction text with visual emphasis
+                            HStack {
+                                Image(systemName: "hand.tap")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                Text("Tap any factor for detailed breakdown")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.blue)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                            
+                            // Factor combination summary
+                            if viewModel.activeFactors.count > 1 {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("How Factors Combine")
                                         .font(.caption)
+                                        .fontWeight(.semibold)
                                         .foregroundColor(.secondary)
-                                        .lineLimit(2)
+                                    
+                                    HStack(spacing: 8) {
+                                        ForEach(Array(viewModel.activeFactors.enumerated()), id: \.offset) { index, factor in
+                                            HStack(spacing: 4) {
+                                                Image(systemName: factor.impactType.icon)
+                                                    .font(.caption2)
+                                                    .foregroundColor(factor.impactType.color)
+                                                Text("\(factor.priority)")
+                                                    .font(.caption2)
+                                                    .fontWeight(.bold)
+                                                    .foregroundColor(.white)
+                                                    .frame(width: 16, height: 16)
+                                                    .background(factor.impactType.color)
+                                                    .clipShape(Circle())
+                                            }
+                                            
+                                            if index < viewModel.activeFactors.count - 1 {
+                                                Image(systemName: "arrow.right")
+                                                    .font(.caption2)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color(.systemGray5))
+                                    .cornerRadius(8)
+                                }
+                            }
+                            
+                            LazyVStack(spacing: 8) {
+                                ForEach(Array(viewModel.activeFactors.enumerated()), id: \.offset) { index, factor in
+                                    ActiveFactorCard(factor: factor)
                                 }
                             }
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
                         .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        .cornerRadius(10)
                     }
                 }
             }
@@ -953,7 +1447,7 @@ struct ContentView: View {
                 }
             }) {
                 HStack {
-                    Image(systemName: "calculator")
+                    Image(systemName: "function")
                     Text("Calculate FTL")
                 }
                 .frame(maxWidth: .infinity)
@@ -999,7 +1493,7 @@ struct ContentView: View {
                     currentDuty: viewModel.dutyTimeValue,
                     maxDuty: viewModel.dynamicDailyDutyLimit,
                     title: "Daily Duty Time",
-                    subtitle: "Current vs Maximum Allowed"
+                    subtitle: nil
                 )
                 
 
@@ -1015,7 +1509,8 @@ struct ContentView: View {
                 // Rest Requirements
                 RestRequirementCard(
                     dutyTime: viewModel.dutyTimeValue,
-                    requiredRest: viewModel.requiredRest
+                    requiredRest: viewModel.requiredRest,
+                    isOutbound: viewModel.isSelectedFlightOutbound
                 )
             }
             .padding()
@@ -1130,7 +1625,7 @@ struct DutyLimitCard: View {
     let currentDuty: Double
     let maxDuty: Double
     let title: String
-    let subtitle: String
+    let subtitle: String?
     
     private var percentage: Double {
         guard maxDuty > 0 else { return 0 }
@@ -1164,9 +1659,11 @@ struct DutyLimitCard: View {
                     Text(title)
                         .font(.headline)
                         .fontWeight(.semibold)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if let subtitle = subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 Spacer()
                 Text(statusText)
@@ -1182,16 +1679,27 @@ struct DutyLimitCard: View {
             // Progress Bar
             VStack(spacing: 8) {
                 HStack {
-                    Text("\(TimeUtilities.formatHoursAndMinutes(currentDuty))")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(statusColor)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Current")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("\(TimeUtilities.formatHoursAndMinutes(currentDuty))")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(statusColor)
+                    }
                     
                     Spacer()
                     
-                    Text("\(TimeUtilities.formatHoursAndMinutes(maxDuty))")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("Maximum Allowed")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("\(TimeUtilities.formatHoursAndMinutes(maxDuty))")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(statusColor)
+                    }
                 }
                 
                 GeometryReader { geometry in
@@ -1378,16 +1886,7 @@ struct CommandersDiscretionCard: View {
 struct RestRequirementCard: View {
     let dutyTime: Double
     let requiredRest: String
-    
-    private var restHours: Double {
-        if dutyTime <= 10 {
-            return 11
-        } else if dutyTime <= 12 {
-            return 12
-        } else {
-            return 14
-        }
-    }
+    let isOutbound: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -1398,6 +1897,21 @@ struct RestRequirementCard: View {
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
+                
+                // Sector type indicator
+                HStack(spacing: 4) {
+                    Image(systemName: isOutbound ? "airplane.departure" : "airplane.arrival")
+                        .font(.caption)
+                        .foregroundColor(isOutbound ? .orange : .green)
+                    Text(isOutbound ? "Outbound" : "Inbound")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(isOutbound ? .orange : .green)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background((isOutbound ? Color.orange : Color.green).opacity(0.1))
+                .cornerRadius(6)
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -1406,21 +1920,12 @@ struct RestRequirementCard: View {
                         Text("Required Rest")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                        Text("\(String(format: "%.0f", restHours))h")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.purple)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Next Duty")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
                         Text(requiredRest)
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(.purple)
                     }
+                    Spacer()
                 }
                 
                 // Rest period explanation
@@ -1430,14 +1935,20 @@ struct RestRequirementCard: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.secondary)
                     
-                    if dutyTime <= 10 {
-                        Text("• ≤10h duty: 11h rest required")
+                    if isOutbound {
+                        Text("• Outbound sector: 10h minimum rest required")
                             .font(.caption)
-                    } else if dutyTime <= 12 {
-                        Text("• 10-12h duty: 12h rest required")
+                        Text("• Rest must be ≥ duty time or 10h, whichever is greater")
                             .font(.caption)
                     } else {
-                        Text("• >12h duty: 14h rest required")
+                        Text("• Inbound sector (home base): 12h minimum rest required")
+                            .font(.caption)
+                        Text("• Rest must be ≥ duty time or 12h, whichever is greater")
+                            .font(.caption)
+                    }
+                    
+                    if dutyTime > 14.0 {
+                        Text("• Extended duty (>14h): 16h rest required")
                             .font(.caption)
                     }
                 }
@@ -2114,6 +2625,123 @@ struct AirportPickerView: View {
     }
 }
 
+// MARK: - Active Factor Card
+struct ActiveFactorCard: View {
+    let factor: ActiveFactor
+    @State private var showingDetailPopup = false
+    
+    var body: some View {
+        Button(action: {
+            showingDetailPopup = true
+        }) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: factor.impactType.icon)
+                        .foregroundColor(factor.impactType.color)
+                        .font(.caption)
+                    
+                    Text(factor.title)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    // Impact indicator
+                    Text(factor.impactType.rawValue.uppercased())
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(factor.impactType.color.opacity(0.2))
+                        .foregroundColor(factor.impactType.color)
+                        .cornerRadius(4)
+                    
+                    // Add chevron to indicate it's tappable
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                Text(factor.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                
+                // Show factor value preview
+                Text(factor.factorValue)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(factor.impactType.color)
+                    .lineLimit(1)
+                
+                if !factor.details.isEmpty {
+                    Text(factor.details)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .italic()
+                        .lineLimit(1)
+                }
+                
+                Text(factor.impact)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(factor.impactType.color)
+                
+                // Show priority and dependencies preview
+                HStack(spacing: 12) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "list.number")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text("\(factor.priority)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if !factor.dependencies.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "link")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("\(factor.dependencies.count)")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Tap hint
+                    Text("Tap for details")
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                        .italic()
+                }
+            }
+            .padding(12)
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(factor.impactType.color.opacity(0.3), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .scaleEffect(showingDetailPopup ? 0.98 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: showingDetailPopup)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+                .opacity(showingDetailPopup ? 1 : 0)
+        )
+        .sheet(isPresented: $showingDetailPopup) {
+            FactorDetailPopupView(factor: factor)
+        }
+    }
+}
+
 #Preview {
     ContentView()
 }
@@ -2128,6 +2756,364 @@ extension View {
         ZStack(alignment: alignment) {
             placeholder().opacity(shouldShow ? 1 : 0)
             self
+        }
+    }
+}
+
+// MARK: - Factor Detail Popup View
+struct FactorDetailPopupView: View {
+    let factor: ActiveFactor
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header with icon and title
+                    VStack(spacing: 16) {
+                        Image(systemName: factor.impactType.icon)
+                            .font(.system(size: 50))
+                            .foregroundColor(factor.impactType.color)
+                        
+                        Text(factor.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .multilineTextAlignment(.center)
+                        
+                        // Impact type badge
+                        Text(factor.impactType.rawValue.uppercased())
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(factor.impactType.color.opacity(0.2))
+                            .foregroundColor(factor.impactType.color)
+                            .cornerRadius(8)
+                        
+                        // Priority indicator
+                        HStack {
+                            Image(systemName: "list.number")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("Calculation Priority: \(factor.priority)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    // Factor Value Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Factor Value")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text(factor.factorValue)
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .foregroundColor(factor.impactType.color)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(factor.impactType.color.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+                    
+                    // Before/After Comparison (if available)
+                    if let beforeAfter = factor.beforeAfter {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Limit Change")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            HStack(spacing: 16) {
+                                VStack(alignment: .center, spacing: 8) {
+                                    Text("Before")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(beforeAfter.before)
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
+                                
+                                Image(systemName: "arrow.right")
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                                
+                                VStack(alignment: .center, spacing: 8) {
+                                    Text("After")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(beforeAfter.after)
+                                        .font(.body)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(factor.impactType.color)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(factor.impactType.color.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+                        }
+                    }
+                    
+                    // Calculation Details Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("How This Factor Was Calculated")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text(factor.calculationDetails)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                    }
+                    
+                    // Dependencies Section
+                    if !factor.dependencies.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Dependencies")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(factor.dependencies, id: \.self) { dependency in
+                                    HStack {
+                                        Image(systemName: "link")
+                                            .font(.caption)
+                                            .foregroundColor(.blue)
+                                        Text(dependency)
+                                            .font(.body)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        }
+                    }
+                    
+                    // Main description
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Description")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text(factor.description)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                    }
+                    
+                    // Additional details
+                    if !factor.details.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Additional Details")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            Text(factor.details)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
+                        }
+                    }
+                    
+                    // Impact explanation
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Impact on Duty Limits")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        HStack {
+                            Image(systemName: factor.impactType.icon)
+                                .foregroundColor(factor.impactType.color)
+                                .font(.title2)
+                            
+                            Text(factor.impact)
+                                .font(.body)
+                                .fontWeight(.medium)
+                                .foregroundColor(factor.impactType.color)
+                            
+                            Spacer()
+                        }
+                        .padding()
+                        .background(factor.impactType.color.opacity(0.1))
+                        .cornerRadius(12)
+                    }
+                    
+                    // Regulatory context based on factor type
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Regulatory Context")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text(getRegulatoryContext(for: factor))
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                    }
+                    
+                    // Additional regulatory details
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Regulatory Reference")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text(factor.regulatoryBasis)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                    }
+                    
+                    // Factor interactions
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Factor Interactions")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text(getFactorInteractions(for: factor))
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Factor Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func getRegulatoryContext(for factor: ActiveFactor) -> String {
+        switch factor.title {
+        case "Acclimatisation":
+            return "UK CAA Table 1 determines acclimatisation status based on time zone difference and elapsed time since departure from home base. Acclimatised crews can use extended duty limits from Table 2, while non-acclimatised crews must use reduced limits."
+            
+        case "Report Time":
+            return "FDP limits are determined by local report time at the departure location. The base limit is found in UK CAA Table 2 (acclimatised) or Table 3 (unknown acclimatisation), then modified by other factors."
+            
+        case "Augmented Crew":
+            return "Additional pilots allow extended duty times up to 17-18 hours depending on rest facility type. This is based on UK CAA regulations for augmented crew operations with proper rest facilities."
+            
+        case "In-Flight Rest":
+            return "Rest facilities during flight allow extended duty times. Class 1 facilities provide the most rest time, followed by Class 2 and Class 3. The specific limits depend on the number of additional pilots and facility type."
+            
+        case "Split Duty":
+            return "Split duty periods with rest breaks require reduced duty limits to ensure adequate recovery time. The rest period must meet minimum duration requirements and be properly documented."
+            
+        case "Consecutive Duty Days":
+            return "After 5 or more consecutive duty days, reduced limits apply to prevent cumulative fatigue. This is a key safety measure in the UK CAA FTL regulations."
+            
+        case "Standby Duty":
+            return "Standby duty affects when FDP begins and how total duty time is calculated. Home standby delays FDP start by 2 hours, while airport standby counts all time toward FDP limits."
+            
+        default:
+            return "This factor affects duty limits according to UK CAA Flight Time Limitations regulations. The specific impact depends on the combination of factors present in your duty."
+        }
+    }
+    
+    private func getRegulatoryReference(for factor: ActiveFactor) -> String {
+        switch factor.title {
+        case "Acclimatisation":
+            return "UK CAA Table 1: Acclimatisation Status"
+        case "Report Time":
+            return "UK CAA Table 2: Acclimatised Duty Limits"
+        case "Augmented Crew":
+            return "UK CAA Regulations: Augmented Crew Operations"
+        case "In-Flight Rest":
+            return "UK CAA Regulations: In-Flight Rest Facilities"
+        case "Split Duty":
+            return "UK CAA Regulations: Split Duty Periods"
+        case "Consecutive Duty Days":
+            return "UK CAA Regulations: Consecutive Duty Days"
+        case "Standby Duty":
+            return "UK CAA Regulations: Standby Duty"
+        default:
+            return "UK CAA Regulations: General Duty Limits"
+        }
+    }
+    
+    private func getFactorInteractions(for factor: ActiveFactor) -> String {
+        switch factor.title {
+        case "Acclimatisation":
+            return "Acclimatisation status affects which regulatory table is used for base FDP limits. Acclimatised crews use Table 2, while non-acclimatised crews use Table 3. This factor interacts with Report Time to determine the starting point for all other modifications."
+            
+        case "Report Time":
+            return "Report time establishes the base FDP limit from the appropriate regulatory table. This base limit is then modified by all other active factors. Early start times (before 06:00) can further reduce limits regardless of acclimatisation status."
+            
+        case "Augmented Crew":
+            return "Augmented crew allows extended duty times but requires proper rest facilities. The number of additional pilots and rest facility type determine the maximum duty limit. This factor works with In-Flight Rest to provide the maximum possible extension."
+            
+        case "In-Flight Rest":
+            return "In-flight rest facilities extend duty limits beyond standard limits. The extension depends on the rest facility class and whether augmented crew is present. This factor cannot exceed the maximum limits set by Augmented Crew regulations."
+            
+        case "Split Duty":
+            return "Split duty reduces the maximum duty time to ensure adequate recovery during the duty period. This reduction applies regardless of other factors and cannot be overridden by extensions from augmented crew or rest facilities."
+            
+        case "Consecutive Duty Days":
+            return "Consecutive duty day limits are cumulative and apply to the entire duty period. These limits work in combination with daily limits and cannot be extended by other factors. They represent a fundamental safety boundary."
+            
+        case "Standby Duty":
+            return "Standby duty affects when FDP begins and how total duty time is calculated. Home standby delays FDP start, while airport standby counts all time. This factor modifies the duty start time, which then affects all subsequent calculations."
+            
+        default:
+            return "This factor works in combination with other active factors to determine your final duty limits. The most restrictive limit always applies, ensuring compliance with UK CAA safety regulations."
+        }
+    }
+    
+    private func getCalculationPriority(for factor: ActiveFactor) -> String {
+        switch factor.title {
+        case "Acclimatisation":
+            return "1st - Determines base regulatory table"
+        case "Report Time":
+            return "2nd - Establishes base FDP limit"
+        case "Augmented Crew":
+            return "3rd - Allows duty time extensions"
+        case "In-Flight Rest":
+            return "4th - Extends duty time based on facilities"
+        case "Split Duty":
+            return "5th - Applies reduction if applicable"
+        case "Consecutive Duty Days":
+            return "6th - Applies cumulative limits"
+        case "Standby Duty":
+            return "7th - Modifies duty start time"
+        default:
+            return "Variable - Applied as needed"
         }
     }
 }

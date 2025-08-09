@@ -86,11 +86,33 @@ struct FTLFactorsView: View {
                             .font(.headline)
                             .fontWeight(.semibold)
                         
-                        ToggleRow(
-                            title: "Reduced Rest",
-                            subtitle: "10-hour rest period (with conditions)",
-                            isOn: $viewModel.ftlFactors.hasReducedRest
-                        )
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "info.circle.fill")
+                                    .foregroundColor(.blue)
+                                    .font(.caption)
+                                Text("Rest Periods")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.blue)
+                                Spacer()
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("• At Home Base: 12 hours minimum")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("• Away From Base: 10 hours minimum")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("• Or duty duration, whichever is greater")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(8)
                     }
                     
                     // Consecutive Duty Days
@@ -192,7 +214,9 @@ struct FTLFactorsView: View {
                     hasAugmentedCrew: $viewModel.ftlFactors.hasAugmentedCrew,
                     hasInFlightRest: $viewModel.ftlFactors.hasInFlightRest,
                     isPresented: $showingAugmentedCrewPopup,
-                    numberOfAdditionalPilots: $viewModel.ftlFactors.numberOfAdditionalPilots
+                    numberOfAdditionalPilots: $viewModel.ftlFactors.numberOfAdditionalPilots,
+                    takeoffTime: viewModel.takeoffTime,
+                    landingTime: viewModel.landingTime
                 )
             }
         }
@@ -259,6 +283,8 @@ struct AugmentedCrewRestFacilityView: View {
     @Binding var hasInFlightRest: Bool
     @Binding var isPresented: Bool
     @Binding var numberOfAdditionalPilots: Int
+    let takeoffTime: String
+    let landingTime: String
     
     @State private var showingRestFacilitySelection = false
     
@@ -309,20 +335,6 @@ struct AugmentedCrewRestFacilityView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                     .multilineTextAlignment(.leading)
-                                
-                                // Show flight time limit
-                                HStack {
-                                    Text("Flight time limit:")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    Text("11 hours")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.blue)
-                                    
-                                    Spacer()
-                                }
                             }
                             .padding()
                             .background(
@@ -355,24 +367,83 @@ struct AugmentedCrewRestFacilityView: View {
                 RestFacilitySelectionView(
                     restFacilityType: $restFacilityType,
                     hasInFlightRest: $hasInFlightRest,
-                    isPresented: $showingRestFacilitySelection
+                    isPresented: $showingRestFacilitySelection,
+                    parentIsPresented: $isPresented,
+                    numberOfAdditionalPilots: numberOfAdditionalPilots,
+                    isLongFlight: calculateIsLongFlight()
                 )
             }
         }
     }
     
-    private func getDutyLimit(for facilityType: RestFacilityType) -> String {
-        // Augmented crew duty limits based on rest facility type
+    private func getDutyLimitForRestFacility(for facilityType: RestFacilityType, additionalPilots: Int, isLongFlight: Bool) -> String {
+        // Augmented crew duty limits based on rest facility type and number of additional pilots
         // Based on UK CAA EASA FTL Regulations (https://www.caa.co.uk/publication/download/17414)
-        switch facilityType {
-        case .class1:
-            return "18h" // Class 1: Bunk/flat bed - maximum 18 hours with augmented crew
-        case .class2:
-            return "17h" // Class 2: Reclining seat in separate compartment - maximum 17 hours with augmented crew
-        case .class3:
-            return "16h" // Class 3: Reclining seat in passenger cabin - maximum 16 hours with augmented crew
-        case .none:
-            return "13h" // No in-flight rest - maximum 13 hours with augmented crew
+        
+        // Determine which table to use based on flight time
+        if isLongFlight {
+            // Table 2: One or two sectors, one with flight time greater than 9 hours
+            switch facilityType {
+            case .class1:
+                return additionalPilots == 1 ? "17h" : "18h"
+            case .class2:
+                return additionalPilots == 1 ? "16h" : "17h"
+            case .class3:
+                return additionalPilots == 1 ? "15h" : "16h"
+            case .none:
+                return "13h"
+            }
+        } else {
+            // Table 1: Up to 3 Sectors
+            switch facilityType {
+            case .class1:
+                return additionalPilots == 1 ? "16h" : "17h"
+            case .class2:
+                return additionalPilots == 1 ? "15h" : "16h"
+            case .class3:
+                return additionalPilots == 1 ? "14h" : "15h"
+            case .none:
+                return "13h"
+            }
+        }
+    }
+    
+    private func calculateIsLongFlight() -> Bool {
+        // Calculate flight time from takeoff to landing
+        let flightTime = TimeUtilities.calculateHoursBetween(takeoffTime, landingTime)
+        // Long flight = 1 or 2 sectors with one sector > 9 hours
+        return flightTime > 9.0
+    }
+    
+    private func getDutyLimit(for facilityType: RestFacilityType, additionalPilots: Int, isLongFlight: Bool = false) -> String {
+        // Augmented crew duty limits based on rest facility type and number of additional pilots
+        // Based on UK CAA EASA FTL Regulations (https://www.caa.co.uk/publication/download/17414)
+        
+        // Determine which table to use based on flight time
+        if isLongFlight {
+            // Table 2: One or two sectors, one with flight time greater than 9 hours
+            switch facilityType {
+            case .class1:
+                return additionalPilots == 1 ? "17h" : "18h"
+            case .class2:
+                return additionalPilots == 1 ? "16h" : "17h"
+            case .class3:
+                return additionalPilots == 1 ? "15h" : "16h"
+            case .none:
+                return "13h"
+            }
+        } else {
+            // Table 1: Up to 3 Sectors
+            switch facilityType {
+            case .class1:
+                return additionalPilots == 1 ? "16h" : "17h"
+            case .class2:
+                return additionalPilots == 1 ? "15h" : "16h"
+            case .class3:
+                return additionalPilots == 1 ? "14h" : "15h"
+            case .none:
+                return "13h"
+            }
         }
     }
 }
@@ -381,6 +452,9 @@ struct RestFacilitySelectionView: View {
     @Binding var restFacilityType: RestFacilityType
     @Binding var hasInFlightRest: Bool
     @Binding var isPresented: Bool
+    @Binding var parentIsPresented: Bool
+    let numberOfAdditionalPilots: Int
+    let isLongFlight: Bool
     
     var body: some View {
         NavigationView {
@@ -412,7 +486,9 @@ struct RestFacilitySelectionView: View {
                                 hasInFlightRest = true
                             }
                             
+                            // Close both popups
                             isPresented = false
+                            parentIsPresented = false
                         }) {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
@@ -441,7 +517,7 @@ struct RestFacilitySelectionView: View {
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     
-                                    Text(getDutyLimit(for: facilityType))
+                                    Text(getDutyLimitForRestFacility(for: facilityType, additionalPilots: numberOfAdditionalPilots, isLongFlight: isLongFlight))
                                         .font(.caption)
                                         .fontWeight(.medium)
                                         .foregroundColor(.blue)
@@ -479,18 +555,35 @@ struct RestFacilitySelectionView: View {
         }
     }
     
-    private func getDutyLimit(for facilityType: RestFacilityType) -> String {
-        // Augmented crew duty limits based on rest facility type
+    private func getDutyLimitForRestFacility(for facilityType: RestFacilityType, additionalPilots: Int, isLongFlight: Bool) -> String {
+        // Augmented crew duty limits based on rest facility type and number of additional pilots
         // Based on UK CAA EASA FTL Regulations (https://www.caa.co.uk/publication/download/17414)
-        switch facilityType {
-        case .class1:
-            return "18h" // Class 1: Bunk/flat bed - maximum 18 hours with augmented crew
-        case .class2:
-            return "17h" // Class 2: Reclining seat in separate compartment - maximum 17 hours with augmented crew
-        case .class3:
-            return "16h" // Class 3: Reclining seat in passenger cabin - maximum 16 hours with augmented crew
-        case .none:
-            return "13h" // No in-flight rest - maximum 13 hours with augmented crew
+        
+        // Determine which table to use based on flight time
+        if isLongFlight {
+            // Table 2: One or two sectors, one with flight time greater than 9 hours
+            switch facilityType {
+            case .class1:
+                return additionalPilots == 1 ? "17h" : "18h"
+            case .class2:
+                return additionalPilots == 1 ? "16h" : "17h"
+            case .class3:
+                return additionalPilots == 1 ? "15h" : "16h"
+            case .none:
+                return "13h"
+            }
+        } else {
+            // Table 1: Up to 3 Sectors
+            switch facilityType {
+            case .class1:
+                return additionalPilots == 1 ? "16h" : "17h"
+            case .class2:
+                return additionalPilots == 1 ? "15h" : "16h"
+            case .class3:
+                return additionalPilots == 1 ? "14h" : "15h"
+            case .none:
+                return "13h"
+            }
         }
     }
 }

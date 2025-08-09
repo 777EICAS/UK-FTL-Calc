@@ -13,29 +13,14 @@ import Combine
 class FTLViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var flightNumber: String = ""
-    @Published var departure: String = "" {
-        didSet {
-            // Calculate time zone difference when departure changes
-            if !departure.isEmpty && !arrival.isEmpty {
-                calculateTimeZoneDifference()
-            }
-        }
-    }
-    @Published var arrival: String = "" {
-        didSet {
-            // Calculate time zone difference when arrival changes
-            if !departure.isEmpty && !arrival.isEmpty {
-                calculateTimeZoneDifference()
-            }
-        }
-    }
+    @Published var departure: String = ""
+    @Published var arrival: String = ""
     @Published var reportTime: String = "" {
         didSet {
             // Sync FTL factors when report time changes
             if !reportTime.isEmpty {
                 ftlFactors.startTime = reportTime
-                // Auto-detect night duty when report time changes
-                autoDetectNightDuty()
+                
             }
         }
     }
@@ -46,8 +31,7 @@ class FTLViewModel: ObservableObject {
             // Automatically set landing time to 30 minutes before duty end time
             if !dutyEndTime.isEmpty {
                 updateLandingTimeFromDutyEnd()
-                // Auto-detect night duty when duty end time changes
-                autoDetectNightDuty()
+                
             }
         }
     }
@@ -57,56 +41,97 @@ class FTLViewModel: ObservableObject {
     @Published var aiAnalysisResult: AIAnalysisResult?
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var activeFactors: [ActiveFactor] = []
+    @Published var allImportedFlights: [FlightRecord] = []
+    
+    // MARK: - Selected Flight Properties
+    @Published var isSelectedFlightOutbound: Bool = false
     
     // MARK: - FTL Factors
     @Published var ftlFactors = FTLFactors()
     
     // MARK: - Profile Settings (sync with ProfileView)
-    @AppStorage("homeBase") private var homeBase: String = "LHR"
+    @AppStorage("homeBase") var homeBase: String = "LHR"
     @AppStorage("secondHomeBase") private var secondHomeBase: String = ""
     
     // MARK: - Computed Properties
+    
     var canCalculate: Bool {
-        let hasAllFields = !flightNumber.isEmpty &&
-        !departure.isEmpty &&
-        !arrival.isEmpty &&
-        !reportTime.isEmpty &&
-        !takeoffTime.isEmpty &&
-        !landingTime.isEmpty &&
-        !dutyEndTime.isEmpty
-        
-        let validTimes = ValidationRules.isValidTimeFormat(reportTime) &&
-        ValidationRules.isValidTimeFormat(takeoffTime) &&
-        ValidationRules.isValidTimeFormat(landingTime) &&
-        ValidationRules.isValidTimeFormat(dutyEndTime)
-        
-        let validFlightNumber = ValidationRules.isValidFlightNumber(flightNumber)
-        let validDeparture = ValidationRules.isValidAirportCode(departure)
-        let validArrival = ValidationRules.isValidAirportCode(arrival)
-        
-        let result = hasAllFields && validTimes && validFlightNumber && validDeparture && validArrival
-        
-        if !result {
-            print("DEBUG: canCalculate validation failed:")
-            print("  hasAllFields: \(hasAllFields)")
-            print("  validTimes: \(validTimes)")
-            print("  validFlightNumber: \(validFlightNumber)")
-            print("  validDeparture: \(validDeparture)")
-            print("  validArrival: \(validArrival)")
-            print("  flightNumber: '\(flightNumber)'")
-            print("  departure: '\(departure)'")
-            print("  arrival: '\(arrival)'")
-            print("  reportTime: '\(reportTime)'")
-            print("  takeoffTime: '\(takeoffTime)'")
-            print("  landingTime: '\(landingTime)'")
-            print("  dutyEndTime: '\(dutyEndTime)'")
+        return hasAllFields && validTimes && validFlightNumber && validDeparture && validArrival
+    }
+    
+    var hasAllFields: Bool {
+        return !flightNumber.isEmpty && !departure.isEmpty && !arrival.isEmpty &&
+               !reportTime.isEmpty && !takeoffTime.isEmpty && !landingTime.isEmpty && !dutyEndTime.isEmpty
+    }
+    
+    var validTimes: Bool {
+        return ValidationRules.isValidTimeFormat(reportTime) && ValidationRules.isValidTimeFormat(takeoffTime) &&
+               ValidationRules.isValidTimeFormat(landingTime) && ValidationRules.isValidTimeFormat(dutyEndTime)
+    }
+    
+    var validFlightNumber: Bool {
+        return ValidationRules.isValidFlightNumber(flightNumber)
+    }
+    
+    var validDeparture: Bool {
+        return departure.count == 3
+    }
+    
+    var validArrival: Bool {
+        return arrival.count == 3
+    }
+    
+    var isCompliant: Bool {
+        guard let result = calculationResult else { return false }
+        return result.isCompliant
+    }
+    
+    var warnings: [String] {
+        guard let result = calculationResult else { return [] }
+        return result.warnings
+    }
+    
+    var currentActiveFactors: [ActiveFactor] {
+        guard !departure.isEmpty && !arrival.isEmpty else { return [] }
+        // Only calculate active factors if we have a calculation result
+        guard let result = calculationResult else { return [] }
+        return UKCAALimits.getActiveFactorsWithImpact(
+            factors: ftlFactors,
+            pilotType: .multiPilot, // This should be configurable
+            departure: departure,
+            arrival: arrival,
+            homeBase: homeBase,
+            maxFDP: result.maxFDP
+        )
+    }
+    
+    var violations: [String] {
+        guard let result = calculationResult else { return [] }
+        return result.violations
+    }
+    
+    var complianceColor: Color {
+        guard let result = calculationResult else { return .gray }
+        if result.violations.isEmpty && result.warnings.isEmpty {
+            return .green
+        } else if result.violations.isEmpty {
+            return .orange
+        } else {
+            return .red
         }
-        
-        return result
     }
     
     var hasCalculatedResults: Bool {
         calculationResult != nil
+    }
+    
+    var hasImportedFlights: Bool {
+        !allImportedFlights.isEmpty
+    }
+    
+    var availableFlightsCount: Int {
+        allImportedFlights.count
     }
     
     var currentStatus: String {
@@ -137,27 +162,7 @@ class FTLViewModel: ObservableObject {
         }
     }
     
-    var isNightDutyAutoDetected: Bool {
-        // Check if night duty was auto-detected based on current times
-        guard !reportTime.isEmpty && !dutyEndTime.isEmpty else { return false }
-        
-        let departureUpper = departure.uppercased()
-        let localTimeZoneOffset = TimeUtilities.getTimeZoneOffsetFromUTC(for: departureUpper)
-        
-        guard let reportDate = TimeUtilities.parseTime(reportTime),
-              let dutyEndDate = TimeUtilities.parseTime(dutyEndTime) else { return false }
-        
-        let calendar = Calendar.current
-        let reportHour = calendar.component(.hour, from: reportDate)
-        let dutyEndHour = calendar.component(.hour, from: dutyEndDate)
-        
-        let localReportHour = (reportHour + localTimeZoneOffset + 24) % 24
-        let localDutyEndHour = (dutyEndHour + localTimeZoneOffset + 24) % 24
-        
-        return isTimeInNightWindow(localReportHour) || 
-               isTimeInNightWindow(localDutyEndHour) ||
-               crossesNightWindow(localReportHour, localDutyEndHour)
-    }
+
     
     var dutyTime: String {
         guard let result = calculationResult else { return "0h" }
@@ -198,13 +203,45 @@ class FTLViewModel: ObservableObject {
     
     // MARK: - Dynamic FTL Limits
     var dynamicDailyDutyLimit: Double {
-        return UKCAALimits.calculateDailyDutyLimit(factors: ftlFactors, pilotType: .multiPilot, departure: departure, arrival: arrival, homeBase: homeBase)
+        // Use the new regulatory calculation result if available, otherwise fall back to old calculation
+        if let result = calculationResult {
+            return result.maxFDP ?? UKCAALimits.calculateDailyDutyLimit(factors: ftlFactors, pilotType: .multiPilot, departure: departure, arrival: arrival, homeBase: homeBase)
+        } else {
+            // If no calculation result is available, perform a quick calculation using the new system
+            // This ensures we use the correct logic even before the user clicks "Calculate FTL"
+            return performQuickFTLCalculation()
+        }
+    }
+    
+    // Perform a quick FTL calculation using the new regulatory system
+    private func performQuickFTLCalculation() -> Double {
+        guard canCalculate else {
+            return UKCAALimits.calculateDailyDutyLimit(factors: ftlFactors, pilotType: .multiPilot, departure: departure, arrival: arrival, homeBase: homeBase)
+        }
+        
+        // Calculate flight time and duty time
+        let flightTimeValue = TimeUtilities.calculateHoursBetween(takeoffTime, landingTime)
+        let dutyTimeValue = TimeUtilities.calculateHoursBetween(reportTime, dutyEndTime)
+        
+        // Perform FTL calculations using the new system
+        let result = performFTLCalculations(
+            dutyTime: dutyTimeValue,
+            flightTime: flightTimeValue,
+            pilotType: .multiPilot
+        )
+        
+        return result.maxFDP ?? UKCAALimits.calculateDailyDutyLimit(factors: ftlFactors, pilotType: .multiPilot, departure: departure, arrival: arrival, homeBase: homeBase)
     }
     
 
     
     var limitExplanations: [String] {
-        return UKCAALimits.getLimitExplanations(factors: ftlFactors, pilotType: .multiPilot, departure: departure, arrival: arrival, homeBase: homeBase)
+        // Use the new regulatory calculation explanations if available, otherwise fall back to old calculation
+        if let result = calculationResult {
+            return result.regulatoryExplanations ?? UKCAALimits.getLimitExplanations(factors: ftlFactors, pilotType: .multiPilot, departure: departure, arrival: arrival, homeBase: homeBase)
+        } else {
+            return UKCAALimits.getLimitExplanations(factors: ftlFactors, pilotType: .multiPilot, departure: departure, arrival: arrival, homeBase: homeBase)
+        }
     }
     
     // MARK: - Initialization
@@ -229,6 +266,25 @@ class FTLViewModel: ObservableObject {
         // Sync FTL factors with current data
         syncFTLFactors()
         
+        // Elapsed time has already been calculated correctly in ContentView.swift
+        // No need to recalculate here as it would override the correct date-aware calculation
+        
+        // Determine if this is first sector (departure from home base)
+        ftlFactors.isFirstSector = departure.uppercased() == homeBase.uppercased()
+        
+        // Automatically determine acclimatisation status based on UK CAA Table 1 regulations
+        let acclimatisationStatus = UKCAALimits.determineAcclimatisationStatus(
+            timeZoneDifference: ftlFactors.timeZoneDifference,
+            elapsedTimeHours: ftlFactors.elapsedTimeHours,
+            isFirstSector: ftlFactors.isFirstSector,
+            homeBase: homeBase,
+            departure: departure
+        )
+        ftlFactors.isAcclimatised = acclimatisationStatus.isAcclimatised
+        ftlFactors.shouldBeAcclimatised = acclimatisationStatus.shouldBeAcclimatised
+        
+        print("DEBUG: Acclimatisation - Time zone diff: \(ftlFactors.timeZoneDifference)h, Elapsed: \(ftlFactors.elapsedTimeHours)h, First sector: \(ftlFactors.isFirstSector), Reason: \(acclimatisationStatus.reason)")
+        
         // Calculate flight time from takeoff to landing time
         let flightTimeValue = TimeUtilities.calculateHoursBetween(takeoffTime, landingTime)
         
@@ -243,6 +299,16 @@ class FTLViewModel: ObservableObject {
         )
         
         calculationResult = result
+        
+        // Update active factors after calculation result is available
+        activeFactors = UKCAALimits.getActiveFactorsWithImpact(
+            factors: ftlFactors,
+            pilotType: .multiPilot,
+            departure: departure,
+            arrival: arrival,
+            homeBase: homeBase,
+            maxFDP: result.maxFDP
+        )
         
         // Save flight record
         let flightRecord = FlightRecord(
@@ -282,6 +348,7 @@ class FTLViewModel: ObservableObject {
         calculationResult = nil
         aiAnalysisResult = nil
         errorMessage = nil
+        activeFactors = []
         
         // Reset all FTL factors (quick settings) to default off positions
         ftlFactors = FTLFactors()
@@ -294,10 +361,37 @@ class FTLViewModel: ObservableObject {
         calculationResult = nil
         aiAnalysisResult = nil
         errorMessage = nil
+        activeFactors = []
+    }
+    
+    // Set original home base report time for multi-sector duties
+    func setOriginalHomeBaseReportTime(_ reportTime: String) {
+        ftlFactors.originalHomeBaseReportTime = reportTime
+        ftlFactors.isFirstSector = false // Mark as subsequent sector
+        print("DEBUG: Set original home base report time to: \(reportTime)")
     }
     
     func importFromCalendar() {
         // This will be implemented in CalendarImportView
+    }
+    
+    func selectFlight(_ flight: FlightRecord) {
+        // Update all flight data fields with the selected flight
+        flightNumber = flight.flightNumber
+        departure = flight.departure
+        arrival = flight.arrival
+        reportTime = flight.reportTime
+        takeoffTime = flight.takeoffTime
+        landingTime = flight.landingTime
+        dutyEndTime = flight.dutyEndTime
+        flightTime = String(format: "%.1f", flight.flightTime)
+        isSelectedFlightOutbound = flight.isOutbound // Preserve the outbound status
+        
+        // Reset calculation state since we're switching flights
+        resetCalculationState()
+        
+        // Clear any error messages
+        errorMessage = nil
     }
     
     // MARK: - Private Methods
@@ -323,8 +417,9 @@ class FTLViewModel: ObservableObject {
         print("DEBUG: ViewModel performFTLCalculations - standbyType: \(String(describing: ftlFactors.standbyType))")
         print("DEBUG: ViewModel performFTLCalculations - standbyStartTime: '\(ftlFactors.standbyStartTime)'")
         print("DEBUG: ViewModel performFTLCalculations - dutyEndTime: '\(dutyEndTime)'")
+        print("DEBUG: ViewModel performFTLCalculations - isSelectedFlightOutbound: \(isSelectedFlightOutbound)")
         
-        // Use the comprehensive FTL calculation service
+        // Use the comprehensive FTL calculation service with regulatory tables
         return FTLCalculationService.calculateFTLCompliance(
             dutyTime: dutyTime,
             flightTime: flightTime,
@@ -333,7 +428,14 @@ class FTLViewModel: ObservableObject {
             hasStandbyDuty: ftlFactors.hasStandbyDuty,
             standbyType: ftlFactors.hasStandbyDuty ? ftlFactors.standbyType : nil,
             standbyStartTime: ftlFactors.standbyStartTime,
-            dutyEndTime: dutyEndTime
+            dutyEndTime: dutyEndTime,
+            reportTime: reportTime,
+            departure: departure,
+            arrival: arrival,
+            takeoffTime: takeoffTime,
+            landingTime: landingTime,
+            ftlFactors: ftlFactors,
+            isOutbound: isSelectedFlightOutbound
         )
     }
     
@@ -354,71 +456,12 @@ class FTLViewModel: ObservableObject {
         
         ftlFactors.timeZoneDifference = timeZoneDiff
         
-        // Auto-set acclimatised status for LHR departures
-        autoSetAcclimatisedStatus()
-        
-        // Auto-detect night duty
-        autoDetectNightDuty()
+
     }
     
-    private func autoSetAcclimatisedStatus() {
-        let departureUpper = departure.uppercased()
-        let homeBaseUpper = homeBase.uppercased()
-        let secondHomeBaseUpper = secondHomeBase.uppercased()
-        
-        // Auto-set acclimatised for departures from home base or second home base
-        if departureUpper == homeBaseUpper || departureUpper == secondHomeBaseUpper {
-            ftlFactors.isAcclimatised = true
-            print("DEBUG: Auto-set acclimatised for departure from \(departureUpper) (home base: \(homeBaseUpper), second home base: \(secondHomeBaseUpper))")
-        }
-    }
+
     
-    private func autoDetectNightDuty() {
-        guard !reportTime.isEmpty && !dutyEndTime.isEmpty else { return }
-        
-        // Get the local time zone offset for the departure location (where crew is acclimatised)
-        let departureUpper = departure.uppercased()
-        let localTimeZoneOffset = TimeUtilities.getTimeZoneOffsetFromUTC(for: departureUpper)
-        
-        // Parse report and duty end times
-        guard let reportDate = TimeUtilities.parseTime(reportTime),
-              let dutyEndDate = TimeUtilities.parseTime(dutyEndTime) else { return }
-        
-        let calendar = Calendar.current
-        
-        // Convert UTC times to local acclimatised times
-        let reportHour = calendar.component(.hour, from: reportDate)
-        let dutyEndHour = calendar.component(.hour, from: dutyEndDate)
-        
-        let localReportHour = (reportHour + localTimeZoneOffset + 24) % 24
-        let localDutyEndHour = (dutyEndHour + localTimeZoneOffset + 24) % 24
-        
-        // Check if any portion of the FDP falls within 23:00-06:00 local time
-        let isNightDuty = isTimeInNightWindow(localReportHour) || 
-                         isTimeInNightWindow(localDutyEndHour) ||
-                         crossesNightWindow(localReportHour, localDutyEndHour)
-        
-        ftlFactors.isNightDuty = isNightDuty
-        
-        if isNightDuty {
-            print("DEBUG: Auto-detected night duty - Report: \(localReportHour):00, Duty End: \(localDutyEndHour):00")
-        }
-    }
-    
-    private func isTimeInNightWindow(_ hour: Int) -> Bool {
-        return hour >= 23 || hour < 6
-    }
-    
-    private func crossesNightWindow(_ startHour: Int, _ endHour: Int) -> Bool {
-        // Check if the duty period crosses the 23:00-06:00 night window
-        if startHour <= endHour {
-            // Same day duty
-            return startHour < 6 && endHour >= 23
-        } else {
-            // Overnight duty
-            return startHour < 6 || endHour >= 23
-        }
-    }
+
     
 
 }

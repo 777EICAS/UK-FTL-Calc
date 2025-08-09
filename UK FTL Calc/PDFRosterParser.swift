@@ -155,6 +155,9 @@ class PDFRosterParser: ObservableObject {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             if trimmedLine.isEmpty { continue }
             
+            // Debug: Print each line being processed
+            print("DEBUG: Processing line: '\(trimmedLine)'")
+            
             // Duty block header - start new block
             if let dutyHeader = parseDutyHeader(trimmedLine) {
                 // Finalize previous block if exists
@@ -189,19 +192,110 @@ class PDFRosterParser: ObservableObject {
             
             // Pilot line - collect all pilots for this duty block
             if trimmedLine.contains("Captain") || trimmedLine.contains("Co-Pilot") {
-                if let pilotName = extractPilotName(trimmedLine) {
-                    if !dutyBlockPilots.contains(pilotName) {
-                        dutyBlockPilots.insert(pilotName)
-                        print("DEBUG: Added pilot to duty block: \(pilotName)")
+                // Check if this line also contains return date information
+                if trimmedLine.contains("Return:") {
+                    print("DEBUG: Found pilot line with return date: '\(trimmedLine)'")
+                    
+                    // Split the line into pilot and return date parts
+                    let components = trimmedLine.components(separatedBy: " ")
+                    var pilotParts: [String] = []
+                    var returnDateParts: [String] = []
+                    var foundReturn = false
+                    
+                    for component in components {
+                        if component.hasPrefix("Return:") {
+                            foundReturn = true
+                            // Extract the time part after "Return:"
+                            let timePart = String(component.dropFirst(7)) // Remove "Return:"
+                            returnDateParts.append(timePart)
+                            continue
+                        }
+                        
+                        if foundReturn {
+                            returnDateParts.append(component)
+                        } else {
+                            pilotParts.append(component)
+                        }
+                    }
+                    
+                    print("DEBUG: Pilot parts: \(pilotParts)")
+                    print("DEBUG: Return date parts: \(returnDateParts)")
+                    
+                    // Process pilot part
+                    let pilotLine = pilotParts.joined(separator: " ")
+                    if let pilotName = extractPilotName(pilotLine) {
+                        if !dutyBlockPilots.contains(pilotName) {
+                            dutyBlockPilots.insert(pilotName)
+                            print("DEBUG: Added pilot to duty block: \(pilotName)")
+                        } else {
+                            print("DEBUG: Duplicate pilot in duty block (ignoring): \(pilotName)")
+                        }
+                    }
+                    
+                    // Process return date part
+                    let returnDateLine = returnDateParts.joined(separator: " ")
+                    print("DEBUG: Attempting to parse return date from: '\(returnDateLine)'")
+                    
+                    // Reconstruct the proper return date string
+                    // We need to get the day and day name from pilot parts
+                    // Look for a number (day) and a day name in the pilot parts
+                    var day = ""
+                    var dayName = ""
+                    
+                    for part in pilotParts {
+                        if part.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil && !part.isEmpty {
+                            // This is a number (day)
+                            day = part
+                        } else if ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].contains(part) {
+                            // This is a day name
+                            dayName = part
+                        }
+                    }
+                    
+                    if !day.isEmpty && !dayName.isEmpty {
+                        let reconstructedReturnDate = "\(day) \(dayName) - Return:\(returnDateLine)"
+                        print("DEBUG: Reconstructed return date string: '\(reconstructedReturnDate)'")
+                        
+                        if let returnDate = parseReturnDate(reconstructedReturnDate) {
+                            currentDutyBlock?.returnDate = returnDate
+                            print("DEBUG: Set return date from combined line: \(returnDate)")
+                        } else {
+                            print("DEBUG: Failed to parse return date from reconstructed string")
+                        }
                     } else {
-                        print("DEBUG: Duplicate pilot in duty block (ignoring): \(pilotName)")
+                        print("DEBUG: Could not find day (\(day)) and day name (\(dayName)) in pilot parts")
+                    }
+                } else {
+                    // Regular pilot line without return date
+                    if let pilotName = extractPilotName(trimmedLine) {
+                        if !dutyBlockPilots.contains(pilotName) {
+                            dutyBlockPilots.insert(pilotName)
+                            print("DEBUG: Added pilot to duty block: \(pilotName)")
+                        } else {
+                            print("DEBUG: Duplicate pilot in duty block (ignoring): \(pilotName)")
+                        }
                     }
                 }
                 continue
             }
             
-            // Return date
+            // Return date (standalone date line)
             if let returnDate = parseReturnDate(trimmedLine) {
+                currentDutyBlock?.returnDate = returnDate
+                continue
+            }
+            
+            // Pilot line with return date (e.g., "Co-Pilot Joshua Head 13 Wednesday - Return:11:50z")
+            if let (pilotName, returnDate) = parsePilotWithReturnDate(trimmedLine) {
+                // Add pilot to duty block
+                if !dutyBlockPilots.contains(pilotName) {
+                    dutyBlockPilots.insert(pilotName)
+                    print("DEBUG: Added pilot to duty block: \(pilotName)")
+                } else {
+                    print("DEBUG: Duplicate pilot in duty block (ignoring): \(pilotName)")
+                }
+                
+                // Set return date
                 currentDutyBlock?.returnDate = returnDate
                 continue
             }
@@ -217,7 +311,8 @@ class PDFRosterParser: ObservableObject {
                !trimmedLine.contains("Hotel") && !trimmedLine.contains("Tel:") &&
                !trimmedLine.contains("Pickup") && !trimmedLine.contains("Return:") &&
                !trimmedLine.contains("ATD:") && !trimmedLine.contains("ATA:") &&
-               !trimmedLine.contains("a/c:") && !trimmedLine.contains("______") {
+               !trimmedLine.contains("a/c:") && !trimmedLine.contains("______") &&
+               !trimmedLine.contains("Captain") && !trimmedLine.contains("Co-Pilot") {
                 print("DEBUG: Unmatched line: '\(trimmedLine)'")
             }
         }
@@ -272,6 +367,7 @@ class PDFRosterParser: ObservableObject {
         let displayAirline = airline == "XBA" ? "BA" : airline
         
         print("DEBUG: Parsed flight - Airline: '\(airline)', Display Airline: '\(displayAirline)', Flight Number: '\(flightNumber)', Combined: '\(displayAirline) \(flightNumber)'")
+        print("DEBUG: Flight times - Departure: '\(departureTime)' from '\(departure)', Arrival: '\(arrivalTime)' at '\(arrival)'")
         
         return ParsedFlight(
             airline: airline,
@@ -284,7 +380,7 @@ class PDFRosterParser: ObservableObject {
     }
     
     private func parseReturnDate(_ line: String) -> String? {
-        // Pattern: "7 Thursday - Return:09:10z"
+        // Pattern: "7 Thursday - Return:09:10z" (standalone return date line)
         let pattern = #"(\d+)\s+(\w+)\s+-\s+Return:(\d{2}:\d{2}z)"#
         
         guard let regex = try? NSRegularExpression(pattern: pattern),
@@ -295,7 +391,34 @@ class PDFRosterParser: ObservableObject {
         let day = String(line[Range(match.range(at: 1), in: line)!])
         let dayName = String(line[Range(match.range(at: 2), in: line)!])
         
+        print("DEBUG: Parsed standalone return date: '\(day) \(dayName)' from line: '\(line)'")
         return "\(day) \(dayName)"
+    }
+    
+    private func parsePilotWithReturnDate(_ line: String) -> (pilotName: String, returnDate: String)? {
+        // Pattern: "Co-Pilot Joshua Head 13 Wednesday - Return:11:50z" or "Training Captain Martin Abbott 11 Wednesday - Return:08:50z"
+        // This line contains both pilot information and return date
+        let pattern = #"(Captain|Co-Pilot|Training Captain)\s+([A-Za-z]+)\s+([A-Za-z]+)\s+(\d+)\s+(\w+)\s+-\s+Return:(\d{2}:\d{2}z)"#
+        
+        print("DEBUG: parsePilotWithReturnDate - testing line: '\(line)'")
+        
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else {
+            print("DEBUG: parsePilotWithReturnDate - no match for line: '\(line)'")
+            return nil
+        }
+        
+        let pilotType = String(line[Range(match.range(at: 1), in: line)!])
+        let firstName = String(line[Range(match.range(at: 2), in: line)!])
+        let lastName = String(line[Range(match.range(at: 3), in: line)!])
+        let day = String(line[Range(match.range(at: 4), in: line)!])
+        let dayName = String(line[Range(match.range(at: 5), in: line)!])
+        
+        let pilotName = "\(firstName) \(lastName)"
+        let returnDate = "\(day) \(dayName)"
+        
+        print("DEBUG: Parsed pilot with return date - Pilot: '\(pilotName)' (\(pilotType)), Return Date: '\(returnDate)' from line: '\(line)'")
+        return (pilotName: pilotName, returnDate: returnDate)
     }
     
     private func parseLayoverInfo(_ line: String) -> ParsedLayover? {
@@ -326,7 +449,7 @@ class PDFRosterParser: ObservableObject {
         // The user is automatically assumed to be one pilot, so we count additional pilots
         var pilotCount = 1 // Start with 1 (the user)
         
-        // Count Captain mentions
+        // Count Captain mentions (including Training Captain)
         let captainCount = line.components(separatedBy: "Captain").count - 1
         pilotCount += captainCount
         
@@ -334,8 +457,11 @@ class PDFRosterParser: ObservableObject {
         let coPilotCount = line.components(separatedBy: "Co-Pilot").count - 1
         pilotCount += coPilotCount
         
+        // Note: Training Captain is already counted in the Captain count above
+        // since "Training Captain" contains "Captain"
+        
         print("DEBUG: Pilot count calculation - Line: '\(line)'")
-        print("DEBUG:   Captain count: \(captainCount)")
+        print("DEBUG:   Captain count (including Training Captain): \(captainCount)")
         print("DEBUG:   Co-Pilot count: \(coPilotCount)")
         print("DEBUG:   Total pilots (including user): \(pilotCount)")
         
@@ -346,11 +472,14 @@ class PDFRosterParser: ObservableObject {
 
     
     private func extractPilotName(_ line: String) -> String? {
-        // Extract pilot name from line like "Captain Peter Jones" or "Co-Pilot Joshua Head"
+        // Extract pilot name from line like "Captain Peter Jones", "Co-Pilot Joshua Head", or "Training Captain Martin Abbott"
         let words = line.components(separatedBy: .whitespaces)
         if words.count >= 3 && (words[0] == "Captain" || words[0] == "Co-Pilot") {
             // Return first and last name (e.g., "Peter Jones")
             return "\(words[1]) \(words[2])"
+        } else if words.count >= 4 && words[0] == "Training" && words[1] == "Captain" {
+            // Handle "Training Captain Martin Abbott"
+            return "\(words[2]) \(words[3])"
         }
         return nil
     }
@@ -405,11 +534,14 @@ class PDFRosterParser: ObservableObject {
         let dateFormatter = DateFormatter.shortDate
         let formattedDateString = dateFormatter.string(from: flightDate)
         
-        // Calculate duty time (1h 30m before takeoff)
-        let dutyStartTime = calculateDutyStartTime(from: flight.departureTime)
+        // Calculate report time based on departure airport
+        let dutyStartTime = calculateDutyStartTime(from: flight.departureTime, departure: flight.departure)
         
         // Calculate actual flight time from OFF Block to ON Block
         let flightTimeHours = TimeUtilities.calculateHoursBetween(flight.departureTime, flight.arrivalTime)
+        
+        // Calculate actual duty time from report time to duty end time
+        let dutyTimeHours = TimeUtilities.calculateHoursBetween(dutyStartTime, flight.arrivalTime)
         
         let finalFlightRecord = FlightRecord(
             flightNumber: flight.flightNumber,
@@ -420,7 +552,7 @@ class PDFRosterParser: ObservableObject {
             landingTime: flight.arrivalTime,
             dutyEndTime: flight.arrivalTime,
             flightTime: flightTimeHours,
-            dutyTime: 1.5, // 1h 30m
+            dutyTime: dutyTimeHours,
             pilotType: .multiPilot,
             date: formattedDateString,
             pilotCount: isOutbound ? dutyBlock.outboundPilotCount : dutyBlock.inboundPilotCount
@@ -431,24 +563,44 @@ class PDFRosterParser: ObservableObject {
         return finalFlightRecord
     }
     
-    private func calculateDutyStartTime(from takeoffTime: String) -> String {
-        // Convert takeoff time to minutes, subtract 90 minutes, convert back
+    private func calculateDutyStartTime(from takeoffTime: String, departure: String) -> String {
+        // Determine report time based on departure airport
+        // LHR/LGW departures: 90 minutes before departure
+        // All other departures: 75 minutes before departure
+        let reportTimeMinutes: Int
+        if departure.uppercased() == "LHR" || departure.uppercased() == "LGW" {
+            reportTimeMinutes = 90
+            print("DEBUG: LHR/LGW departure - using 90 minute report time")
+        } else {
+            reportTimeMinutes = 75
+            print("DEBUG: Non-LHR/LGW departure (\(departure)) - using 75 minute report time")
+        }
+        
+        // Convert takeoff time to minutes, subtract report time, convert back
         let timeComponents = takeoffTime.replacingOccurrences(of: "z", with: "").components(separatedBy: ":")
         guard let hour = Int(timeComponents[0]), let minute = Int(timeComponents[1]) else {
+            print("DEBUG: Failed to parse time components from '\(takeoffTime)'")
             return "00:00z"
         }
         
-        var totalMinutes = hour * 60 + minute - 90 // 1h 30m before
+        let departureMinutes = hour * 60 + minute
+        var totalMinutes = departureMinutes - reportTimeMinutes
+        
+        print("DEBUG: Time calculation - Departure: \(hour):\(minute)z (\(departureMinutes) minutes) - \(reportTimeMinutes) minutes = \(totalMinutes) minutes")
         
         // Handle negative time (previous day)
         if totalMinutes < 0 {
             totalMinutes += 24 * 60
+            print("DEBUG: Adjusted for previous day: \(totalMinutes) minutes")
         }
         
         let dutyHour = totalMinutes / 60
         let dutyMinute = totalMinutes % 60
         
-        return String(format: "%02d:%02dz", dutyHour, dutyMinute)
+        let reportTime = String(format: "%02d:%02dz", dutyHour, dutyMinute)
+        print("DEBUG: Calculated report time: \(reportTime) (departure: \(takeoffTime), airport: \(departure))")
+        
+        return reportTime
     }
     
 

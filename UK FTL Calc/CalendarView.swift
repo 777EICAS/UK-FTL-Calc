@@ -10,7 +10,7 @@ struct CalendarView: View {
     @StateObject private var viewModel = FTLViewModel()
     @State private var selectedDate = Date()
 
-    @State private var showingPDFUpload = false
+    @State private var showingFileUpload = false
     @State private var flights: [FlightRecord] = []
     @State private var isLoading = false
     @State private var showingDeleteMenu = false
@@ -47,11 +47,11 @@ struct CalendarView: View {
                         }
                         Spacer()
                         
-                        // PDF Upload Button
+                        // File Upload Button
                         Button(action: {
-                            showingPDFUpload = true
+                            showingFileUpload = true
                         }) {
-                            Image(systemName: "doc.text.magnifyingglass")
+                            Image(systemName: "doc.badge.plus")
                                 .font(.title2)
                                 .foregroundColor(.green)
                         }
@@ -187,11 +187,11 @@ struct CalendarView: View {
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
 
-            .sheet(isPresented: $showingPDFUpload) {
-                PDFUploadView { parsedFlights in
+            .sheet(isPresented: $showingFileUpload) {
+                FileUploadView { selectedFlights, allFlights in
                     // Add the parsed flights to the calendar, preventing duplicates
-                    print("CalendarView: Importing \(parsedFlights.count) flights from PDF")
-                    self.addFlightsWithoutDuplicates(parsedFlights)
+                    print("CalendarView: Importing \(selectedFlights.count) selected flights from \(allFlights.count) total flights")
+                    self.addFlightsWithoutDuplicates(selectedFlights)
                     print("CalendarView: Total flights after PDF import: \(self.flights.count)")
                 }
             }

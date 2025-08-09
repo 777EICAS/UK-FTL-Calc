@@ -5,9 +5,10 @@ struct PDFUploadView: View {
     @StateObject private var pdfParser = PDFRosterParser()
     @State private var showingDocumentPicker = false
     @State private var showingProcessingView = false
+    @State private var showingFlightSelection = false
     @State private var selectedPDFURL: URL?
     
-    let onFlightsParsed: ([FlightRecord]) -> Void
+    let onFlightsParsed: ([FlightRecord], [FlightRecord]) -> Void // (selectedFlights, allFlights)
     
     var body: some View {
         VStack(spacing: 20) {
@@ -100,85 +101,37 @@ struct PDFUploadView: View {
         .sheet(isPresented: $showingProcessingView) {
             PDFProcessingView(
                 pdfParser: pdfParser,
-                onComplete: { flights in
+                onComplete: { allFlights in
                     showingProcessingView = false
-                    onFlightsParsed(flights)
+                    showingFlightSelection = true
                 },
                 onCancel: {
                     showingProcessingView = false
                 }
             )
         }
+        .sheet(isPresented: $showingFlightSelection) {
+            FlightSelectionView(
+                allFlights: pdfParser.parsedFlights,
+                onFlightSelected: { selectedFlight in
+                    showingFlightSelection = false
+                    onFlightsParsed([selectedFlight], pdfParser.parsedFlights)
+                },
+                onCancel: {
+                    showingFlightSelection = false
+                }
+            )
+        }
     }
 }
 
-// MARK: - Document Picker
-struct DocumentPicker: UIViewControllerRepresentable {
-    @Binding var selectedURL: URL?
-    let onFileSelected: (URL) -> Void
-    
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        // Try different approaches for document picker
-        let picker: UIDocumentPickerViewController
-        
-        if #available(iOS 14.0, *) {
-            // Use the newer API
-            picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.pdf], asCopy: true)
-        } else {
-            // Fallback for older iOS versions
-            picker = UIDocumentPickerViewController(documentTypes: ["com.adobe.pdf"], in: .import)
-        }
-        
-        picker.delegate = context.coordinator
-        picker.allowsMultipleSelection = false
-        picker.shouldShowFileExtensions = true
-        
-        // Add error handling for system issues
-        print("DEBUG: Creating document picker with configuration: \(picker)")
-        return picker
-    }
-    
-    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let parent: DocumentPicker
-        
-        init(_ parent: DocumentPicker) {
-            self.parent = parent
-        }
-        
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            print("DEBUG: Document picker did pick documents: \(urls)")
-            guard let url = urls.first else { 
-                print("DEBUG: No URL selected")
-                return 
-            }
-            parent.selectedURL = url
-            parent.onFileSelected(url)
-        }
-        
-        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-            print("DEBUG: Document picker was cancelled")
-        }
-        
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentAt url: URL) {
-            print("DEBUG: Document picker did pick document at: \(url)")
-            parent.selectedURL = url
-            parent.onFileSelected(url)
-        }
-    }
-}
+// DocumentPicker is now defined in FileUploadView.swift
 
 // MARK: - Processing View
 struct PDFProcessingView: View {
     @ObservedObject var pdfParser: PDFRosterParser
-    let onComplete: ([FlightRecord]) -> Void
+    let onComplete: ([FlightRecord]) -> Void // (allFlights)
     let onCancel: () -> Void
-    @State private var showingFlightSelection = false
     
     var body: some View {
         NavigationView {
@@ -233,12 +186,12 @@ struct PDFProcessingView: View {
                                     HStack {
                                         Image(systemName: "hand.tap.fill")
                                             .foregroundColor(.blue)
-                                        Text("Import Options:")
+                                        Text("Ready to Select Flight:")
                                             .font(.headline)
                                             .fontWeight(.semibold)
                                     }
                                     
-                                    Text("Choose to import all flights or select individual flights")
+                                    Text("All \(pdfParser.parsedFlights.count) flights have been imported. Now choose which flight to analyze.")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                         .multilineTextAlignment(.center)
@@ -247,56 +200,23 @@ struct PDFProcessingView: View {
                                 .background(Color.blue.opacity(0.1))
                                 .cornerRadius(10)
                                 
-                                // Import All Button
+                                // Continue to Flight Selection Button
                                 Button(action: {
                                     onComplete(pdfParser.parsedFlights)
                                 }) {
                                     HStack {
-                                        Image(systemName: "square.and.arrow.down")
+                                        Image(systemName: "airplane")
                                             .font(.title2)
-                                        Text("Import All \(pdfParser.parsedFlights.count) Flights")
+                                        Text("Continue to Flight Selection")
                                             .fontWeight(.semibold)
                                     }
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 24)
                                     .padding(.vertical, 12)
-                                    .background(Color.green)
+                                    .background(Color.blue)
                                     .cornerRadius(10)
                                 }
                                 .padding(.horizontal)
-                                
-                                // Divider
-                                HStack {
-                                    Rectangle()
-                                        .fill(Color(.systemGray4))
-                                        .frame(height: 1)
-                                    Text("OR")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .padding(.horizontal, 8)
-                                    Rectangle()
-                                        .fill(Color(.systemGray4))
-                                        .frame(height: 1)
-                                }
-                                .padding(.horizontal)
-                                
-                                // Individual Flight Selection
-                                VStack(spacing: 8) {
-                                    Text("Select Individual Flights:")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.secondary)
-                                    
-                                    ScrollView {
-                                        LazyVStack(spacing: 12) {
-                                            ForEach(pdfParser.parsedFlights) { flight in
-                                                PDFUploadFlightRow(flight: flight) {
-                                                    onComplete([flight])
-                                                }
-                                            }
-                                        }
-                                        .padding(.horizontal)
-                                    }
                                     .frame(maxHeight: 300)
                                 }
                             }
@@ -321,9 +241,7 @@ struct PDFProcessingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
         }
-
     }
-}
 
 // MARK: - PDF Upload Flight Row
 struct PDFUploadFlightRow: View {
@@ -390,8 +308,111 @@ struct PDFUploadFlightRow: View {
     }
 }
 
+// MARK: - Flight Selection View
+struct FlightSelectionView: View {
+    let allFlights: [FlightRecord]
+    let onFlightSelected: (FlightRecord) -> Void
+    let onCancel: () -> Void
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Header
+                VStack(spacing: 16) {
+                    Image(systemName: "airplane.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.blue)
+                    
+                    Text("Select Flight to Analyze")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Choose which flight you want to analyze for FTL calculations")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 20)
+                
+                // Flight List
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(allFlights) { flight in
+                            FlightSelectionRow(flight: flight) {
+                                onFlightSelected(flight)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        onCancel()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Flight Selection Row
+struct FlightSelectionRow: View {
+    let flight: FlightRecord
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 16) {
+                // Flight Icon
+                VStack {
+                    Image(systemName: "airplane")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                    Text(flight.departure)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                
+                // Flight Details
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(flight.flightNumber)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Text("\(flight.departure) → \(flight.arrival)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Report: \(flight.reportTime) | Takeoff: \(flight.takeoffTime)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                // Arrow
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
 #Preview {
-    PDFUploadView { flights in
-        print("Parsed \(flights.count) flights")
+    PDFUploadView { selectedFlights, allFlights in
+        print("Parsed \(selectedFlights.count) selected flights from \(allFlights.count) total flights")
     }
 } 
