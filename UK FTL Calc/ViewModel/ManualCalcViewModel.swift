@@ -13,20 +13,6 @@ class ManualCalcViewModel: ObservableObject {
     @AppStorage("homeBase") var homeBase: String = "LHR"
     @AppStorage("secondHomeBase") var secondHomeBase: String = ""
     
-    // MARK: - Field Completion Tracking
-    @Published var showingFieldGuidance = false
-    @Published var currentGuidanceMessage = ""
-    @Published var currentGuidanceType: GuidanceType = .info
-    @Published var nextRequiredField: RequiredField = .none
-    
-    // MARK: - Section Completion Status
-    @Published var homeBaseSectionComplete = false
-    @Published var standbySectionComplete = false
-    @Published var reportingSectionComplete = false
-    @Published var sectorsSectionComplete = false
-    @Published var fdpResultsSectionComplete = false
-    @Published var latestTimesSectionComplete = false
-    
     // MARK: - Standby/Reserve State
     @Published var showingStandbyOptions = false
     @Published var selectedStandbyType: String = "Standby"
@@ -39,6 +25,9 @@ class ManualCalcViewModel: ObservableObject {
     @Published var selectedReportingLocation: String = ""
     @Published var showingReportingDateTimePicker = false
     @Published var reportingDateTime: Date = Date()
+    
+    // MARK: - Smart Flow Triggers
+    @Published var shouldAutoFocusNextField: Bool = false
     
     // MARK: - Acclimatisation State
     @Published var showingAcclimatisationPicker = false
@@ -116,6 +105,56 @@ class ManualCalcViewModel: ObservableObject {
         return formatter
     }()
     
+    // MARK: - Smart Flow Management
+    @Published var currentFlowStep: FlowStep = .homeBases
+    @Published var nextRequiredField: RequiredField?
+    @Published var showFieldGuidance: Bool = false
+    @Published var fieldGuidanceMessage: String = ""
+
+    enum FlowStep: String, CaseIterable {
+        case homeBases = "Home Bases"
+        case standby = "Standby Configuration"
+        case reporting = "Reporting Details"
+        case sectors = "Sectors & Extensions"
+        case results = "FDP Results"
+        
+        var description: String {
+            switch self {
+            case .homeBases: return "Configure your home bases"
+            case .standby: return "Set up standby or reserve requirements"
+            case .reporting: return "Enter reporting details"
+            case .sectors: return "Configure sectors and extensions"
+            case .results: return "Review FDP calculations"
+            }
+        }
+    }
+
+    enum RequiredField: String, CaseIterable {
+        case standbyType = "Standby Type"
+        case standbyStartDateTime = "Standby Start Date & Time"
+        case standbyLocation = "Standby Location"
+        case standbyContactTime = "Standby Contact Time"
+        case reportingDateTime = "Reporting Date & Time"
+        case reportingLocation = "Reporting Location"
+        case acclimatisation = "Acclimatisation"
+        case inFlightRest = "In-Flight Rest"
+        case estimatedBlockTime = "Estimated Block Time"
+        
+        var description: String {
+            switch self {
+            case .standbyType: return "Select standby type (Airport Standby, Reserve, etc.)"
+            case .standbyStartDateTime: return "Choose when standby begins"
+            case .standbyLocation: return "Select standby location"
+            case .standbyContactTime: return "Set standby contact time"
+            case .reportingDateTime: return "Enter reporting date and time"
+            case .reportingLocation: return "Select reporting location"
+            case .acclimatisation: return "Configure acclimatisation settings"
+            case .inFlightRest: return "Set up in-flight rest configuration"
+            case .estimatedBlockTime: return "Enter estimated block time"
+            }
+        }
+    }
+    
     // MARK: - Initialization
     init() {
         // Initialize in-flight rest configuration
@@ -124,6 +163,11 @@ class ManualCalcViewModel: ObservableObject {
             inFlightRestSectors = 1
             isLongFlight = false
             additionalCrewMembers = 1
+        }
+        
+        // Determine initial required field
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.determineNextRequiredField()
         }
     }
     
@@ -369,7 +413,7 @@ class ManualCalcViewModel: ObservableObject {
         var utcCalendar = Calendar.current
         utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
         let reportingDate = utcCalendar.startOfDay(for: reportingDateTime)
-        let offBlocksDate = utcCalendar.startOfDay(for: reportingDate)
+        let offBlocksDate = utcCalendar.startOfDay(for: date)
         
         if utcCalendar.isDate(offBlocksDate, inSameDayAs: reportingDate) {
             formatter.dateFormat = "HH:mm"
@@ -404,127 +448,184 @@ class ManualCalcViewModel: ObservableObject {
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date) + "z"
     }
-    
-    // MARK: - Field Guidance System
-    func checkNextRequiredField() {
-        // Check Home Base Section
-        if !homeBaseSectionComplete {
-            if homeBase.isEmpty {
-                showGuidance(message: "Set your primary home base to continue", type: .required, field: .homeBase)
-                return
-            }
-            homeBaseSectionComplete = true
-        }
-        
-        // Check Standby Section
-        if isStandbyEnabled && !standbySectionComplete {
-            if selectedStandbyType.isEmpty {
-                showGuidance(message: "Select standby type (Standby, Airport Duty, or Reserve)", type: .required, field: .standbyType)
-                return
-            }
-            if selectedStandbyLocation.isEmpty {
-                showGuidance(message: "Set standby location", type: .required, field: .standbyLocation)
-                return
-            }
-            if standbyStartDateTime == Date() {
-                showGuidance(message: "Set standby start date and time", type: .required, field: .standbyDateTime)
-                return
-            }
-            standbySectionComplete = true
-        }
-        
-        // Check Reporting Section
-        if !reportingSectionComplete {
-            if selectedReportingLocation.isEmpty {
-                showGuidance(message: "Set reporting location", type: .required, field: .reportingLocation)
-                return
-            }
-            if reportingDateTime == Date() {
-                showGuidance(message: "Set reporting date and time", type: .required, field: .reportingDateTime)
-                return
-            }
-            if selectedAcclimatisation.isEmpty {
-                showGuidance(message: "Set acclimatisation status", type: .required, field: .acclimatisation)
-                return
-            }
-            reportingSectionComplete = true
-        }
-        
-        // Check Sectors Section
-        if !sectorsSectionComplete {
-            if numberOfSectors < 1 {
-                showGuidance(message: "Set number of sectors", type: .required, field: .sectors)
-                return
-            }
-            if hasInFlightRest && restFacilityType == .none {
-                showGuidance(message: "Configure in-flight rest facility", type: .required, field: .inFlightRest)
-                return
-            }
-            if estimatedBlockTime <= 0 {
-                showGuidance(message: "Set estimated block time", type: .required, field: .blockTime)
-                return
-            }
-            sectorsSectionComplete = true
-        }
-        
-        // All required fields completed
-        showGuidance(message: "All required fields completed! FDP calculations are ready.", type: .success, field: .none)
-        fdpResultsSectionComplete = true
-        latestTimesSectionComplete = true
-    }
-    
-    func showGuidance(message: String, type: GuidanceType, field: RequiredField) {
-        currentGuidanceMessage = message
-        currentGuidanceType = type
-        nextRequiredField = field
-        showingFieldGuidance = true
-        
-        // Auto-hide guidance after 4 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-            if self.showingFieldGuidance {
-                self.showingFieldGuidance = false
-            }
-        }
-    }
-    
-    func hideGuidance() {
-        showingFieldGuidance = false
-    }
-    
-    func getSectionCompletionPercentage() -> Double {
-        var completedSections = 0
-        let totalSections = 6
-        
-        if homeBaseSectionComplete { completedSections += 1 }
-        if standbySectionComplete || !isStandbyEnabled { completedSections += 1 }
-        if reportingSectionComplete { completedSections += 1 }
-        if sectorsSectionComplete { completedSections += 1 }
-        if fdpResultsSectionComplete { completedSections += 1 }
-        if latestTimesSectionComplete { completedSections += 1 }
-        
-        return Double(completedSections) / Double(totalSections)
-    }
-}
 
-// MARK: - Guidance System Enums
-enum GuidanceType {
-    case info
-    case required
-    case warning
-    case success
-}
-
-enum RequiredField {
-    case none
-    case homeBase
-    case standbyType
-    case standbyLocation
-    case standbyDateTime
-    case reportingLocation
-    case reportingDateTime
-    case acclimatisation
-    case sectors
-    case inFlightRest
-    case blockTime
+        // MARK: - Flow Control Methods
+    func determineNextRequiredField() {
+        // Check home bases first
+        if homeBase.isEmpty {
+            nextRequiredField = nil
+            currentFlowStep = .homeBases
+            showFieldGuidance = true
+            fieldGuidanceMessage = "Please add at least one home base to continue"
+            return
+        }
+        
+        // Check standby configuration
+        if isStandbyEnabled {
+            if selectedStandbyType == "Standby" {
+                if standbyStartDateTime == Date() {
+                    nextRequiredField = .standbyStartDateTime
+                    currentFlowStep = .standby
+                    showFieldGuidance = true
+                    fieldGuidanceMessage = "Please set standby start date and time"
+                    return
+                }
+                
+                if selectedStandbyLocation.isEmpty {
+                    nextRequiredField = .standbyLocation
+                    currentFlowStep = .standby
+                    showFieldGuidance = true
+                    fieldGuidanceMessage = "Please select standby location"
+                    return
+                }
+                
+                // Check if contact time is needed based on standby type
+                if selectedStandbyType == "Standby" && standbyStartDateTime != Date() {
+                    nextRequiredField = .standbyContactTime
+                    currentFlowStep = .standby
+                    showFieldGuidance = true
+                    fieldGuidanceMessage = "Please set standby contact time"
+                    return
+                }
+            }
+        }
+        
+        // Check reporting details
+        if reportingDateTime == Date() {
+            nextRequiredField = .reportingDateTime
+            currentFlowStep = .reporting
+            showFieldGuidance = true
+            fieldGuidanceMessage = "Please set reporting date and time"
+            return
+        }
+        
+        if selectedReportingLocation.isEmpty {
+            nextRequiredField = .reportingLocation
+            currentFlowStep = .reporting
+            showFieldGuidance = true
+            fieldGuidanceMessage = "Please select reporting location"
+            return
+        }
+        
+        // Check sectors and extensions
+        if estimatedBlockTime == 0 {
+            nextRequiredField = .estimatedBlockTime
+            currentFlowStep = .sectors
+            showFieldGuidance = true
+            fieldGuidanceMessage = "Please enter estimated block time"
+            return
+        }
+        
+        // If we get here, all required fields are filled
+        nextRequiredField = nil
+        currentFlowStep = .results
+        showFieldGuidance = false
+        fieldGuidanceMessage = "All required fields completed! Review your FDP calculations below."
+    }
+    
+    func advanceToNextStep() {
+        guard let currentIndex = FlowStep.allCases.firstIndex(of: currentFlowStep) else { return }
+        
+        let nextIndex = min(currentIndex + 1, FlowStep.allCases.count - 1)
+        currentFlowStep = FlowStep.allCases[nextIndex]
+        
+        // Determine what field to focus on next
+        determineNextRequiredField()
+    }
+    
+    func goToStep(_ step: FlowStep) {
+        currentFlowStep = step
+        determineNextRequiredField()
+    }
+    
+    func dismissFieldGuidance() {
+        showFieldGuidance = false
+        fieldGuidanceMessage = ""
+    }
+    
+    // MARK: - Smart Field Triggers
+    func onStandbyTypeSelected() {
+        // Auto-focus on next required field
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.determineNextRequiredField()
+            if self.nextRequiredField == .standbyStartDateTime {
+                self.showingDateTimePicker = true
+            }
+        }
+    }
+    
+    func onStandbyDateTimeSelected() {
+        // Auto-focus on next required field
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.determineNextRequiredField()
+            if self.nextRequiredField == .standbyLocation {
+                self.showingLocationPicker = true
+            }
+        }
+    }
+    
+    func onStandbyLocationSelected() {
+        // Auto-focus on next required field
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.determineNextRequiredField()
+            if self.nextRequiredField == .standbyContactTime {
+                // Show contact time picker or move to next step
+                self.determineNextRequiredField()
+            }
+        }
+    }
+    
+    func onReportingDateTimeSelected() {
+        // Auto-focus on next required field
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.determineNextRequiredField()
+            if self.nextRequiredField == .reportingLocation {
+                self.showingReportingLocationPicker = true
+            }
+        }
+    }
+    
+    func onReportingLocationSelected() {
+        // Auto-focus on next required field
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.determineNextRequiredField()
+        }
+    }
+    
+    func onBlockTimeEntered() {
+        // Auto-focus on next required field
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.determineNextRequiredField()
+        }
+    }
+    
+    // MARK: - Field Validation
+    var isStandbyConfigurationComplete: Bool {
+        guard isStandbyEnabled else { return true }
+        return selectedStandbyType == "Standby" && 
+               standbyStartDateTime != Date() && 
+               !selectedStandbyLocation.isEmpty &&
+               (selectedStandbyType != "Standby" || standbyStartDateTime != Date())
+    }
+    
+    var isReportingConfigurationComplete: Bool {
+        return reportingDateTime != Date() && !selectedReportingLocation.isEmpty
+    }
+    
+    var isSectorsConfigurationComplete: Bool {
+        return estimatedBlockTime > 0
+    }
+    
+    var overallCompletionPercentage: Double {
+        let totalSteps = FlowStep.allCases.count
+        var completedSteps = 0
+        
+        if !homeBase.isEmpty { completedSteps += 1 }
+        if isStandbyConfigurationComplete { completedSteps += 1 }
+        if isReportingConfigurationComplete { completedSteps += 1 }
+        if isSectorsConfigurationComplete { completedSteps += 1 }
+        
+        return Double(completedSteps) / Double(totalSteps)
+    }
 }
 

@@ -9,68 +9,94 @@ import SwiftUI
 
 struct ManualCalcView: View {
     @StateObject private var viewModel = ManualCalcViewModel()
+    @State private var scrollTarget: String? = nil
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header Section - Matching main calculator theme
-                    VStack(spacing: 16) {
-                        // Main Header Card
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Manual FTL Calculator")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Header Section - Matching main calculator theme
+                        VStack(spacing: 16) {
+                            // Main Header Card
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Manual FTL Calculator")
+                                            .font(.title2)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.blue)
+                                        Text("Enter flight information manually for FTL calculations")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    
+                                    // Icon with background
+                                    Image(systemName: "pencil.and.outline")
+                                        .font(.system(size: 40))
                                         .foregroundColor(.blue)
-                                    Text("Enter flight information manually for FTL calculations")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.blue.opacity(0.1))
+                                                .frame(width: 60, height: 60)
+                                        )
                                 }
-                                Spacer()
-                                
-                                // Icon with background
-                                Image(systemName: "pencil.and.outline")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.blue)
-                                    .background(
-                                        Circle()
-                                            .fill(Color.blue.opacity(0.1))
-                                            .frame(width: 60, height: 60)
-                                    )
+                            }
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                        }
+                        
+                        // Flow Guidance Section - Shows progress and next required fields
+                        FlowGuidanceSection(viewModel: viewModel)
+                        
+                        // Home Bases Section
+                        HomeBaseSection(viewModel: viewModel)
+                            .id("homeBases")
+                        
+                        // Standby Section
+                        StandbySection(viewModel: viewModel)
+                            .id("standby")
+                        
+                        // Reporting Section
+                        ReportingSection(viewModel: viewModel)
+                            .id("reporting")
+                        
+                        // Sectors Section
+                        SectorsSection(viewModel: viewModel)
+                            .id("sectors")
+                        
+                        // FDP Results Section
+                        FDPResultsSection(viewModel: viewModel)
+                            .id("fdpResults")
+                        
+                        // Latest Times Section
+                        LatestTimesSection(viewModel: viewModel)
+                            .id("latestTimes")
+                        
+                        Spacer(minLength: 50)
+                    }
+                    .padding()
+                    .onChange(of: viewModel.currentFlowStep) { _, newStep in
+                        // Auto-scroll to the relevant section
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            switch newStep {
+                            case .homeBases:
+                                proxy.scrollTo("homeBases", anchor: .top)
+                            case .standby:
+                                proxy.scrollTo("standby", anchor: .top)
+                            case .reporting:
+                                proxy.scrollTo("reporting", anchor: .top)
+                            case .sectors:
+                                proxy.scrollTo("sectors", anchor: .top)
+                            case .results:
+                                proxy.scrollTo("fdpResults", anchor: .top)
                             }
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(12)
-                        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     }
-                    
-                    // Progress Indicator
-                    SectionProgressIndicator(viewModel: viewModel)
-                    
-                    // Home Bases Section
-                    HomeBaseSection(viewModel: viewModel)
-                    
-                    // Standby Section
-                    StandbySection(viewModel: viewModel)
-                    
-                    // Reporting Section
-                    ReportingSection(viewModel: viewModel)
-                    
-                    // Sectors Section
-                    SectorsSection(viewModel: viewModel)
-                    
-                    // FDP Results Section
-                    FDPResultsSection(viewModel: viewModel)
-                    
-                    // Latest Times Section
-                    LatestTimesSection(viewModel: viewModel)
-                    
-                    Spacer(minLength: 50)
                 }
-                .padding()
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $viewModel.showingStandbyOptions) {
@@ -141,42 +167,7 @@ struct ManualCalcView: View {
                     viewModel.isLongFlight = false
                     viewModel.additionalCrewMembers = 1
                 }
-                
-                // Check for required fields after initialization
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    viewModel.checkNextRequiredField()
-                }
             }
-            .onChange(of: viewModel.isStandbyEnabled) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.selectedStandbyType) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.selectedStandbyLocation) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.standbyStartDateTime) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.selectedReportingLocation) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.reportingDateTime) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.selectedAcclimatisation) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.numberOfSectors) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .onChange(of: viewModel.estimatedBlockTime) { oldValue, newValue in
-                viewModel.checkNextRequiredField()
-            }
-            .overlay(
-                FieldGuidanceOverlay(viewModel: viewModel)
-            )
         }
     }
     
