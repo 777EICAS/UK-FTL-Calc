@@ -49,32 +49,41 @@ struct ContentView: View {
                 }
                 .tag(0)
             
+            // Manual Calc Tab
+            ManualCalcView()
+                .tabItem {
+                    Image(systemName: "pencil.and.outline")
+                        .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
+                    Text("Manual Calc")
+                }
+                .tag(1)
+            
             // Calendar Tab
             CalendarView()
                 .tabItem {
                     Image(systemName: "calendar")
-                        .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
+                        .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
                     Text("Calendar")
                 }
-                .tag(1)
+                .tag(2)
             
             // Settings Tab
             SettingsView()
                 .tabItem {
                     Image(systemName: "gearshape")
-                        .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
+                        .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
                     Text("Settings")
                 }
-                .tag(2)
+                .tag(3)
             
             // Profile Tab
             UserSettings()
                 .tabItem {
                     Image(systemName: "person.circle")
-                        .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
+                        .environment(\.symbolVariants, selectedTab == 4 ? .fill : .none)
                     Text("Profile")
                 }
-                .tag(3)
+                .tag(4)
         }
         .accentColor(.blue)
         .onAppear {

@@ -81,7 +81,16 @@ struct FDPAcclimatisedTable {
 struct FDPUnknownAcclimatisationTable {
     let sectors: [Double]
     
-    static let data = [11, 10.5, 10, 9.5, 9, 9, 9]
+    // Correct UK CAA Table 3 (Unknown Acclimatisation) data
+    // Index 0 = 1-2 sectors → 11h 0m
+    // Index 1 = 3 sectors → 10h 30m  
+    // Index 2 = 4 sectors → 10h 0m
+    // Index 3 = 5 sectors → 09h 30m
+    // Index 4 = 6 sectors → 09h 0m
+    // Index 5 = 7 sectors → 09h 00m
+    // Index 6 = 8 sectors → 09h 00m
+    // 9+ sectors = Not allowed for unknown acclimatisation
+    static let data = [11.0, 10.5, 10.0, 9.5, 9.0, 9.0, 9.0]
 }
 
 struct FDPRosteredExtensionEntry {
@@ -361,8 +370,32 @@ class RegulatoryTableLookup {
     }
     
     static func lookupFDPUnknownAcclimatised(sectors: Int) -> Double {
-        let sectorIndex = min(sectors - 1, FDPUnknownAcclimatisationTable.data.count - 1)
-        return FDPUnknownAcclimatisationTable.data[sectorIndex]
+        // Map sectors to correct index based on UK CAA Table 3 requirements
+        let sectorIndex: Int
+        switch sectors {
+        case 1...2:
+            sectorIndex = 0  // 1-2 sectors → 11h 0m
+        case 3:
+            sectorIndex = 1  // 3 sectors → 10h 30m
+        case 4:
+            sectorIndex = 2  // 4 sectors → 10h 0m
+        case 5:
+            sectorIndex = 3  // 5 sectors → 09h 30m
+        case 6:
+            sectorIndex = 4  // 6 sectors → 09h 0m
+        case 7:
+            sectorIndex = 5  // 7 sectors → 09h 00m
+        case 8:
+            sectorIndex = 6  // 8 sectors → 09h 00m
+        default:
+            // 9+ sectors not allowed for unknown acclimatisation
+            print("ERROR: RegulatoryTables - Table 3: \(sectors) sectors not allowed for unknown acclimatisation")
+            return 0.0  // Return 0 to indicate not allowed
+        }
+        
+        let result = FDPUnknownAcclimatisationTable.data[sectorIndex]
+        print("DEBUG: RegulatoryTables - Table 3 lookup: sectors=\(sectors), index=\(sectorIndex), data=\(FDPUnknownAcclimatisationTable.data), result=\(result)h")
+        return result
     }
     
     static func lookupFDPRosteredExtension(reportTime: String, sectors: Int) -> Double? {
