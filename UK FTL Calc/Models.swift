@@ -31,7 +31,7 @@ enum PilotType: String, CaseIterable {
 
 // MARK: - Flight Record
 struct FlightRecord: Identifiable, Codable {
-    let id = UUID()
+    let id: UUID
     let flightNumber: String
     let departure: String
     let arrival: String
@@ -47,8 +47,13 @@ struct FlightRecord: Identifiable, Codable {
     let tripNumber: String // NEW: Trip identifier to group sectors together
     let isOutbound: Bool // NEW: Whether this is an outbound or inbound sector
     let elapsedTimeHours: Double // NEW: Pre-calculated elapsed time for acclimatisation
+    // NEW: Additional fields for shuttle trips
+    let dutyNumber: String // NEW: Which duty this flight belongs to within the trip
+    let isShuttleTrip: Bool // NEW: Whether this flight is part of a shuttle trip
+    let elapsedTimeFromTripStart: Double // NEW: Elapsed time since reporting at trip home base
     
-    init(flightNumber: String, departure: String, arrival: String, reportTime: String, takeoffTime: String, landingTime: String, dutyEndTime: String, flightTime: Double, dutyTime: Double, pilotType: PilotType, date: String = "", pilotCount: Int = 1, tripNumber: String = "", isOutbound: Bool = false, elapsedTimeHours: Double = 0.0) {
+    init(flightNumber: String, departure: String, arrival: String, reportTime: String, takeoffTime: String, landingTime: String, dutyEndTime: String, flightTime: Double, dutyTime: Double, pilotType: PilotType, date: String = "", pilotCount: Int = 1, tripNumber: String = "", isOutbound: Bool = false, elapsedTimeHours: Double = 0.0, dutyNumber: String = "", isShuttleTrip: Bool = false, elapsedTimeFromTripStart: Double = 0.0) {
+        self.id = UUID()
         self.flightNumber = flightNumber
         self.departure = departure
         self.arrival = arrival
@@ -64,6 +69,9 @@ struct FlightRecord: Identifiable, Codable {
         self.tripNumber = tripNumber
         self.isOutbound = isOutbound
         self.elapsedTimeHours = elapsedTimeHours
+        self.dutyNumber = dutyNumber
+        self.isShuttleTrip = isShuttleTrip
+        self.elapsedTimeFromTripStart = elapsedTimeFromTripStart
     }
 }
 
@@ -109,12 +117,14 @@ enum StandbyType: String, CaseIterable {
     var description: String {
         switch self {
         case .homeStandby:
-            return "Standby at home or suitable accommodation. First 2 hours don't count towards FDP. Max 16h total duty."
+            return "Standby at home or suitable accommodation. FDP starts from report time with reduction based on standby duration exceeding 6-8 hours."
         case .airportStandby:
             return "Standby at airport or designated location. All time counts towards FDP. No maximum standby time."
         }
     }
 }
+
+
 
 // MARK: - FTL Factors
 struct FTLFactors {
@@ -141,6 +151,7 @@ struct FTLFactors {
     var elapsedTimeHours: Double = 0.0 // Time elapsed since reporting time reference
     var isFirstSector: Bool = true // Whether this is the first sector of the duty
     var originalHomeBaseReportTime: String = "" // Original report time at home base for multi-sector duties
+    var acclimatisationReason: String = "" // Reason for acclimatisation status from Table 1 (e.g., "Result B", "Result D", "Result X")
     
     // Computed properties for limit calculations
     var startHour: Int {
@@ -446,7 +457,8 @@ struct UKCAALimits {
         if factors.hasStandbyDuty {
             switch factors.standbyType {
             case .homeStandby:
-                limit = min(limit, 16.0) // Home standby: maximum 16 hours total duty (standby + FDP) - but more restrictive limits still apply
+                // Home standby: FDP reduction based on standby duration exceeding threshold - no hard 16h limit
+                break
             case .airportStandby:
                 // Airport standby: no maximum standby time, but all counts towards FDP
                 // The limit is determined by the standard FDP calculation above
@@ -606,7 +618,7 @@ struct UKCAALimits {
         if factors.hasStandbyDuty {
             switch factors.standbyType {
             case .homeStandby:
-                explanations.append("Home standby: FDP starts 2 hours after standby start time. Maximum 16 hours total duty (standby + FDP). Commanders discretion only available if more restrictive limits apply, and can extend by maximum 2 hours (never beyond 16h).")
+                explanations.append("Home standby: FDP starts from report time. FDP reduced by standby time exceeding 6 hours (8 hours with in-flight rest or split duty). Commanders discretion available for FDP extension.")
             case .airportStandby:
                 explanations.append("Airport standby: FDP starts from standby start time. All standby time counts towards FDP. No maximum standby time limit.")
             }
@@ -628,12 +640,16 @@ struct UKCAALimits {
     
 
     
-    // Determine acclimatisation status based on UK CAA Table 1 regulations
+    // Determine acclimatisation status based on UK CAA ±2 hour band rule and Table 1 regulations
     //
-    // UK CAA Table 1 Matrix:
+    // UK CAA ±2 Hour Band Rule:
+    // Crews are considered acclimatised to a 2-hour wide time zone band around their acclimatised time zone
+    // Within ±2 hours: Result 'D' (acclimatised to departure location)
+    //
+    // UK CAA Table 1 Matrix (for time zone differences > 2 hours):
     // | TZ Diff | <48h | 48-71:59h | 72-95:59h | 96-119:59h | ≥120h |
     // |---------|------|-----------|-----------|-----------|-------|
-    // | <4h     | B    | D         | D         | D         | D     |
+    // | 2-4h    | B    | D         | D         | D         | D     |
     // | 4-6h    | B    | X         | D         | D         | D     |
     // | 6-9h    | B    | X         | X         | D         | D     |
     // | 9-12h   | B    | X         | X         | X         | D     |
@@ -658,22 +674,46 @@ struct UKCAALimits {
             return (true, true, "First sector from home base - always acclimatised")
         }
         
-        // For subsequent sectors, apply UK CAA Table 1 rules
+        // For subsequent sectors, apply UK CAA ±2 hour band rule first, then Table 1 rules if outside the band
         // Reference time: from trip start location (home base)
         // Local time: from current duty start location (current departure airport)
         // Time zone difference: between reference location and current duty start location
         
-        // The key insight: Table 1 tells us if the user is acclimatised to the HOME BASE time zone
-        // But for FDP calculation, we need to know if they're acclimatised to the CURRENT DEPARTURE location
+        // The key insight: The ±2 hour band rule determines if crew is acclimatised to current departure location
+        // Table 1 only applies when outside the ±2 hour band
         
-        // Less than 4 hours time zone difference: Result 'B' (acclimatised to home base)
-        // For <4h, crew are considered acclimatised to home base time zone
-        if timeZoneDifference < 4 {
-            print("DEBUG: Table 1 Reference - Time zone difference: <4h, Elapsed time: \(elapsedTimeHours)h")
-            // For Result 'B': crew is acclimatised to home base time zone
-            // Result 'B' means use Table 2 with home base local time, regardless of departure location
-            print("DEBUG: Table 1 Reference - Found: Row '<4h' = Result 'B' (acclimatised to home base)")
-            return (true, true, "Result B: <4h difference - Result 'B' (acclimatised to home base)")
+        // Apply UK CAA ±2 hour band rule first
+        // Crews are considered acclimatised to a 2-hour wide time zone band around their acclimatised time zone
+        if abs(timeZoneDifference) <= 2 {
+            print("DEBUG: Table 1 Reference - Time zone difference: \(timeZoneDifference)h (within ±2 hour band)")
+            print("DEBUG: Table 1 Reference - Found: Within ±2 hour band = Result 'D' (acclimatised to departure location)")
+            // Result 'D': Crew is acclimatised to current departure location (within ±2 hour band)
+            // Use Table 2 with departure local time for FDP calculations
+            return (true, false, "Result D: Within ±2 hour band - acclimatised to departure location")
+        }
+        
+        // For time zone differences > 2 hours, apply UK CAA Table 1 rules
+        // Less than 4 hours time zone difference: Apply Table 1 rules based on elapsed time
+        if timeZoneDifference > 2 && timeZoneDifference < 4 {
+            print("DEBUG: Table 1 Reference - Time zone difference: 2-4h, Elapsed time: \(elapsedTimeHours)h")
+            print("DEBUG: Table 1 Reference - Looking up: Row '2-4h', Column based on elapsed time")
+            
+            if elapsedTimeHours < 48.0 {
+                // Result 'B': User is acclimatised to home base time zone
+                print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '<48h' = Result 'B'")
+                print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                return (true, true, "Result B: 2-4h difference with <48h elapsed - acclimatised to home base (Result B)")
+            } else if elapsedTimeHours >= 48.0 && elapsedTimeHours < 72.0 {
+                // Result 'D': User is acclimatised to current departure location
+                print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '48-71:59h' = Result 'D'")
+                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                return (true, false, "Result D: 2-4h difference with 48-71:59h elapsed - acclimatised to departure (Result D)")
+            } else if elapsedTimeHours >= 72.0 {
+                // Result 'D': User is acclimatised to current departure location
+                print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '≥72h' = Result 'D'")
+                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                return (true, false, "Result D: 2-4h difference with ≥72h elapsed - acclimatised to departure (Result D)")
+            }
         }
         
         // 4-6 hours time zone difference: Apply Table 1 rules
@@ -928,20 +968,24 @@ struct UKCAALimits {
             reportTimeLimit = RegulatoryTableLookup.lookupFDPUnknownAcclimatised(sectors: factors.numberOfSectors)
         }
         
-        activeFactors.append(ActiveFactor(
-            title: "Report Time",
-            description: "Report time \(factors.startTime) → Local \(localTime) at \(locationText)",
-            details: "\(factors.numberOfSectors) \(sectorText)",
-            impact: "Base FDP limit: \(String(format: "%.1f", reportTimeLimit))h",
-            impactType: .base,
-            isActive: true,
-            calculationDetails: "Base FDP limit determined from UK CAA Table \(table1Result == "D" ? "2" : "3") using local report time \(localTime) at \(locationText) for \(factors.numberOfSectors) \(sectorText)",
-            regulatoryBasis: "UK CAA Table \(table1Result == "D" ? "2" : "3"): \(table1Result == "D" ? "Acclimatised" : "Unknown Acclimatisation") Duty Limits",
-            factorValue: "Report time \(factors.startTime) → Local \(localTime) at \(locationText)",
-            beforeAfter: nil,
-            priority: 2,
-            dependencies: ["Acclimatisation status", "Number of sectors"]
-        ))
+        // Only show Report Time factor when using Table 2 (Results B or D)
+        // When result is 'X', we use Table 3 and don't show local time considerations
+        if table1Result != "X" {
+            activeFactors.append(ActiveFactor(
+                title: "Report Time",
+                description: "Report time \(factors.startTime) → Local \(localTime) at \(locationText)",
+                details: "\(factors.numberOfSectors) \(sectorText)",
+                impact: "Max FDP: \(maxFDP != nil ? TimeUtilities.formatHoursAndMinutes(maxFDP!) : String(format: "%.1f", reportTimeLimit) + "h")",
+                impactType: .base,
+                isActive: true,
+                calculationDetails: "Base FDP limit determined from UK CAA Table 2 using local report time \(localTime) at \(locationText) for \(factors.numberOfSectors) \(sectorText)",
+                regulatoryBasis: "UK CAA Table 2: Acclimatised Duty Limits",
+                factorValue: "Report time \(factors.startTime) → Local \(localTime) at \(locationText)",
+                beforeAfter: nil,
+                priority: 2,
+                dependencies: ["Acclimatisation status", "Number of sectors"]
+            ))
+        }
         
         // Early start information is redundant - already factored into base FDP calculation from report time
         
@@ -1062,7 +1106,7 @@ struct UKCAALimits {
             switch factors.standbyType {
             case .homeStandby:
                 standbyDescription = "Home standby duty"
-                standbyImpact = "FDP starts 2h after standby. Max 16h total duty"
+                standbyImpact = "FDP starts from report time with reduction based on standby duration"
             case .airportStandby:
                 standbyDescription = "Airport standby duty"
                 standbyImpact = "All standby time counts towards FDP"
@@ -1075,10 +1119,10 @@ struct UKCAALimits {
                 impact: standbyImpact,
                 impactType: .modification,
                 isActive: true,
-                calculationDetails: "Standby duty: \(factors.standbyType.rawValue). \(factors.standbyType == .homeStandby ? "FDP start delayed by 2 hours, maximum 16h total duty" : "All standby time counts toward FDP limits")",
+                calculationDetails: "Standby duty: \(factors.standbyType.rawValue). \(factors.standbyType == .homeStandby ? "FDP starts from report time with reduction based on standby duration" : "All standby time counts toward FDP limits")",
                 regulatoryBasis: "UK CAA Regulations: Standby Duty (CAP 371)",
                 factorValue: "\(factors.standbyType.rawValue)\(factors.standbyStartTime.isEmpty ? "" : " from \(factors.standbyStartTime)")",
-                beforeAfter: ("Standard FDP start", factors.standbyType == .homeStandby ? "Delayed FDP start" : "Immediate FDP start"),
+                beforeAfter: ("Standard FDP start", factors.standbyType == .homeStandby ? "FDP reduction based on standby duration" : "Immediate FDP start"),
                 priority: 7,
                 dependencies: ["Base FDP limit", "Standby start time"]
             ))
@@ -1136,13 +1180,13 @@ struct TimeUtilities {
             return 0.0
         }
         
-        let calendar = Calendar.current
+        let _ = Calendar.current
         
         // Check if end time is earlier than start time (overnight period)
         if end < start {
             // Add 24 hours to the end time to handle overnight periods
-            let adjustedEnd = calendar.date(byAdding: .day, value: 1, to: end) ?? end
-            let components = calendar.dateComponents([.hour, .minute], from: start, to: adjustedEnd)
+            let adjustedEnd = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end
+            let components = Calendar.current.dateComponents([.hour, .minute], from: start, to: adjustedEnd)
             
             let hours = Double(components.hour ?? 0)
             let minutes = Double(components.minute ?? 0)
@@ -1150,7 +1194,7 @@ struct TimeUtilities {
             return hours + (minutes / 60.0)
         } else {
             // Same day calculation
-            let components = calendar.dateComponents([.hour, .minute], from: start, to: end)
+            let components = Calendar.current.dateComponents([.hour, .minute], from: start, to: end)
             
             let hours = Double(components.hour ?? 0)
             let minutes = Double(components.minute ?? 0)
@@ -1177,6 +1221,71 @@ struct TimeUtilities {
         // startDate: "5 Tuesday", startTime: "15:35z" (LHR-JFK report)
         // endDate: "7 Thursday", endTime: "00:15z" (JFK-LHR report)
         
+        print("DEBUG: calculateElapsedTimeWithDates - startDate: \(startDate), startTime: \(startTime), endDate: \(endDate), endTime: \(endTime)")
+        
+        // First, try to parse as ISO dates (yyyy-MM-dd format)
+        if startDate.contains("-") && endDate.contains("-") {
+            return calculateElapsedTimeWithISODates(startDate: startDate, startTime: startTime, endDate: endDate, endTime: endTime)
+        }
+        
+        // Fallback to the old logic for relative day numbers
+        return calculateElapsedTimeWithRelativeDays(startDate: startDate, startTime: startTime, endDate: endDate, endTime: endTime)
+    }
+    
+    // New function to handle ISO date strings (yyyy-MM-dd format)
+    private static func calculateElapsedTimeWithISODates(startDate: String, startTime: String, endDate: String, endTime: String) -> Double {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+        
+        guard let startDateObj = dateFormatter.date(from: startDate),
+              let endDateObj = dateFormatter.date(from: endDate) else {
+            print("DEBUG: calculateElapsedTimeWithISODates - Failed to parse ISO dates, using fallback")
+            return calculateHoursBetween(startTime, endTime)
+        }
+        
+        // Parse the times
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
+        timeFormatter.timeZone = TimeZone(abbreviation: "UTC")
+        
+        guard let startTimeDate = timeFormatter.date(from: startTime),
+              let endTimeDate = timeFormatter.date(from: endTime) else {
+            print("DEBUG: calculateElapsedTimeWithISODates - Failed to parse times, using fallback")
+            return calculateHoursBetween(startTime, endTime)
+        }
+        
+        // Create full datetime objects using Calendar with UTC timezone
+        let _ = Calendar.current
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
+        
+        let startComponents = utcCalendar.dateComponents([.year, .month, .day], from: startDateObj)
+        let endComponents = utcCalendar.dateComponents([.year, .month, .day], from: endDateObj)
+        
+        let startHour = utcCalendar.component(.hour, from: startTimeDate)
+        let startMinute = utcCalendar.component(.minute, from: startTimeDate)
+        let endHour = utcCalendar.component(.hour, from: endTimeDate)
+        let endMinute = utcCalendar.component(.minute, from: endTimeDate)
+        
+        // Create full datetime objects in UTC
+        guard let startDateTime = utcCalendar.date(from: DateComponents(year: startComponents.year, month: startComponents.month, day: startComponents.day, hour: startHour, minute: startMinute)),
+              let endDateTime = utcCalendar.date(from: DateComponents(year: endComponents.year, month: endComponents.month, day: endComponents.day, hour: endHour, minute: endMinute)) else {
+            print("DEBUG: calculateElapsedTimeWithISODates - Failed to create datetime objects, using fallback")
+            return calculateHoursBetween(startTime, endTime)
+        }
+        
+        // Calculate the time difference in hours
+        let timeDifference = endDateTime.timeIntervalSince(startDateTime) / 3600.0
+        
+        print("DEBUG: calculateElapsedTimeWithISODates - startDateTime: \(startDateTime), endDateTime: \(endDateTime)")
+        print("DEBUG: calculateElapsedTimeWithISODates - timeDifference: \(timeDifference) hours")
+        
+        return timeDifference
+    }
+    
+    // Original function for relative day numbers (kept for backward compatibility)
+    private static func calculateElapsedTimeWithRelativeDays(startDate: String, startTime: String, endDate: String, endTime: String) -> Double {
         // Parse the dates to get day numbers
         let startDay = extractDayNumber(from: startDate)
         let endDay = extractDayNumber(from: endDate)
@@ -1186,7 +1295,7 @@ struct TimeUtilities {
         
         // Validate day difference to prevent unrealistic values
         if dayDifference < 0 || dayDifference > 31 {
-            print("DEBUG: calculateElapsedTimeWithDates - Invalid day difference: \(dayDifference) days. Using fallback calculation.")
+            print("DEBUG: calculateElapsedTimeWithRelativeDays - Invalid day difference: \(dayDifference) days. Using fallback calculation.")
             // Fallback to time-only calculation if day difference is invalid
             return calculateHoursBetween(startTime, endTime)
         }
@@ -1204,7 +1313,7 @@ struct TimeUtilities {
             
             guard let startTimeDate = timeFormatter.date(from: startTime),
                   let endTimeDate = timeFormatter.date(from: endTime) else {
-                print("DEBUG: calculateElapsedTimeWithDates - Failed to parse times, using fallback")
+                print("DEBUG: calculateElapsedTimeWithRelativeDays - Failed to parse times, using fallback")
                 return calculateHoursBetween(startTime, endTime)
             }
             
@@ -1237,9 +1346,9 @@ struct TimeUtilities {
             }
         }
         
-        print("DEBUG: calculateElapsedTimeWithDates - startDate: \(startDate), startTime: \(startTime), endDate: \(endDate), endTime: \(endTime)")
-        print("DEBUG: calculateElapsedTimeWithDates - startDay: \(startDay), endDay: \(endDay), dayDifference: \(dayDifference)")
-        print("DEBUG: calculateElapsedTimeWithDates - adjustedTimeDifference: \(adjustedTimeDifference)")
+        print("DEBUG: calculateElapsedTimeWithRelativeDays - startDate: \(startDate), startTime: \(startTime), endDate: \(endDate), endTime: \(endTime)")
+        print("DEBUG: calculateElapsedTimeWithRelativeDays - startDay: \(startDay), endDay: \(endDay), dayDifference: \(dayDifference)")
+        print("DEBUG: calculateElapsedTimeWithRelativeDays - adjustedTimeDifference: \(adjustedTimeDifference)")
         
         return adjustedTimeDifference
     }
@@ -1339,12 +1448,14 @@ struct TimeUtilities {
     
     static let baDestinations: [(String, String)] = [
         ("ABZ", "Europe/London"),  // ABZ
+        ("ABV", "Africa/Lagos"),  // ABV
         ("ACC", "Africa/Accra"),  // ACC
         ("AKL", "Pacific/Auckland"),  // AKL
         ("AMM", "Asia/Amman"),  // AMM
         ("AMS", "Europe/Amsterdam"),  // AMS
         ("ANU", "America/Antigua"),  // ANU
         ("ATH", "Europe/Athens"),  // ATH
+        ("AGP", "Europe/Madrid"),  // AGP
         ("ATL", "America/New_York"),  // ATL
         ("AUS", "America/Chicago"),  // AUS
         ("AUH", "Asia/Dubai"),  // AUH
@@ -1356,99 +1467,175 @@ struct TimeUtilities {
         ("BGI", "America/Barbados"),  // BGI
         ("BHX", "Europe/London"),  // BHX
         ("BKK", "Asia/Bangkok"),  // BKK
+        ("BLR", "Asia/Kolkata"),  // BLR
         ("BNE", "Australia/Brisbane"),  // BNE
         ("BOG", "America/Bogota"),  // BOG
         ("BOM", "Asia/Kolkata"),  // BOM
         ("BOS", "America/New_York"),  // BOS
         ("BRS", "Europe/London"),  // BRS
+        ("BWI", "America/New_York"),  // BWI
         ("BUD", "Europe/Budapest"),  // BUD
+        ("BDA", "Atlantic/Bermuda"),  // BDA
+        ("BES", "Europe/Paris"),  // BES
+        ("BIO", "Europe/Madrid"),  // BIO
+        ("BOD", "Europe/Paris"),  // BOD
+        ("BRQ", "Europe/Prague"),  // BRQ
         ("CAI", "Africa/Cairo"),  // CAI
         ("CAN", "Asia/Shanghai"),  // CAN
         ("CCU", "Asia/Kolkata"),  // CCU
         ("CDG", "Europe/Paris"),  // CDG
         ("CGK", "Asia/Jakarta"),  // CGK
+        ("CLJ", "Europe/Bucharest"),  // CLJ
         ("CPH", "Europe/Copenhagen"),  // CPH
         ("CPT", "Africa/Johannesburg"),  // CPT
+        ("CRA", "Europe/Bucharest"),  // CRA
+        ("CUN", "America/Cancun"),  // CUN
+        ("CVG", "America/New_York"),  // CVG
         ("DAR", "Africa/Dar_es_Salaam"),  // DAR
         ("DEL", "Asia/Kolkata"),  // DEL
         ("DEN", "America/Denver"),  // DEN
         ("DFW", "America/Chicago"),  // DFW
+        ("GIG", "America/Sao_Paulo"),  // GIG
         ("DOH", "Asia/Qatar"),  // DOH
         ("DUB", "Europe/Dublin"),  // DUB
         ("DUR", "Africa/Johannesburg"),  // DUR
         ("DXB", "Asia/Dubai"),  // DXB
+        ("DUS", "Europe/Berlin"),  // DUS
         ("EDI", "Europe/London"),  // EDI
         ("EWR", "America/New_York"),  // EWR
+        ("EIN", "Europe/Amsterdam"),  // EIN
         ("EZE", "America/Argentina/Buenos_Aires"),  // EZE
         ("FCO", "Europe/Rome"),  // FCO
         ("FRA", "Europe/Berlin"),  // FRA
+        ("FAO", "Europe/Lisbon"),  // FAO
+        ("FMM", "Europe/Berlin"),  // FMM
+        ("FMO", "Europe/Berlin"),  // FMO
+        ("FSC", "Europe/Paris"),  // FSC
         ("GCM", "America/Cayman"),  // GCM
         ("GIG", "America/Sao_Paulo"),  // GIG
         ("GLA", "Europe/London"),  // GLA
         ("GND", "America/Grenada"),  // GND
+        ("GOA", "Europe/Rome"),  // GOA
+        ("GOT", "Europe/Stockholm"),  // GOT
         ("GRU", "America/Sao_Paulo"),  // GRU
         ("GVA", "Europe/Zurich"),  // GVA
+        ("HAM", "Europe/Berlin"),  // HAM
         ("HEL", "Europe/Helsinki"),  // HEL
+        ("HHN", "Europe/Berlin"),  // HHN
         ("HKG", "Asia/Hong_Kong"),  // HKG
         ("HND", "Asia/Tokyo"),  // HND
+        ("HYD", "Asia/Kolkata"),  // HYD
+        ("IAD", "America/New_York"),  // IAD
         ("IAH", "America/Chicago"),  // IAH
         ("ICN", "Asia/Seoul"),  // ICN
         ("IST", "Europe/Istanbul"),  // IST
+        ("ISB", "Asia/Karachi"),  // ISB
         ("JFK", "America/New_York"),  // JFK
+        ("JSI", "Europe/Athens"),  // JSI
+        ("JTR", "Europe/Athens"),  // JTR
+        ("JED", "Asia/Riyadh"),  // JED
         ("JNB", "Africa/Johannesburg"),  // JNB
         ("KGL", "Africa/Kigali"),  // KGL
+        ("KGS", "Europe/Athens"),  // KGS
         ("KIN", "America/Jamaica"),  // KIN
+        ("KSC", "Europe/Bratislava"),  // KSC
+        ("KUN", "Europe/Vilnius"),  // KUN
         ("KUL", "Asia/Kuala_Lumpur"),  // KUL
         ("KWI", "Asia/Kuwait"),  // KWI
         ("LAD", "Africa/Luanda"),  // LAD
+        ("LAS", "America/Los_Angeles"),  // LAS
         ("LAX", "America/Los_Angeles"),  // LAX
         ("LCY", "Europe/London"),  // LCY
         ("LGW", "Europe/London"),  // LGW
         ("LHR", "Europe/London"),  // LHR
         ("LIM", "America/Lima"),  // LIM
         ("LIS", "Europe/Lisbon"),  // LIS
+        ("LJU", "Europe/Ljubljana"),  // LJU
         ("LOS", "Africa/Lagos"),  // LOS
+        ("LPA", "Atlantic/Canary"),  // LPA
         ("MAA", "Asia/Kolkata"),  // MAA
         ("MAD", "Europe/Madrid"),  // MAD
         ("MAN", "Europe/London"),  // MAN
+        ("MEX", "America/Mexico_City"),  // MEX
+        ("MBX", "Europe/Ljubljana"),  // MBX
         ("MBJ", "America/Jamaica"),  // MBJ
         ("MCO", "America/New_York"),  // MCO
         ("MCT", "Asia/Muscat"),  // MCT
         ("MEL", "Australia/Melbourne"),  // MEL
         ("MIA", "America/New_York"),  // MIA
+        ("MLE", "Indian/Maldives"),  // MLE
+        ("MRU", "Indian/Mauritius"),  // MRU
         ("MUC", "Europe/Berlin"),  // MUC
         ("MXP", "Europe/Rome"),  // MXP
+        ("MSY", "America/Chicago"),  // MSY
         ("NAS", "America/Nassau"),  // NAS
+        ("NCE", "Europe/Paris"),  // NCE
+        ("NRN", "Europe/Berlin"),  // NRN
+        ("NUE", "Europe/Berlin"),  // NUE
         ("NBO", "Africa/Nairobi"),  // NBO
         ("NCL", "Europe/London"),  // NCL
         ("NRT", "Asia/Tokyo"),  // NRT
         ("ORD", "America/Chicago"),  // ORD
+        ("ORY", "Europe/Paris"),  // ORY
+        ("OSR", "Europe/Prague"),  // OSR
         ("OSL", "Europe/Oslo"),  // OSL
+        ("PDX", "America/Los_Angeles"),  // PDX
         ("PEK", "Asia/Shanghai"),  // PEK
+        ("PGF", "Europe/Paris"),  // PGF
+        ("PHL", "America/New_York"),  // PHL
         ("PER", "Australia/Perth"),  // PER
+        ("PHX", "America/Phoenix"),  // PHX
+        ("PIT", "America/New_York"),  // PIT
+        ("PMI", "Europe/Madrid"),  // PMI
+        ("PMO", "Europe/Rome"),  // PMO
+        ("POS", "America/Port_of_Spain"),  // POS
         ("PRG", "Europe/Prague"),  // PRG
+        ("PSA", "Europe/Rome"),  // PSA
         ("PUJ", "America/Santo_Domingo"),  // PUJ
         ("PVG", "Asia/Shanghai"),  // PVG
+        ("PUF", "Europe/Paris"),  // PUF
         ("RUH", "Asia/Riyadh"),  // RUH
+        ("RNS", "Europe/Paris"),  // RNS
+        ("RZE", "Europe/Warsaw"),  // RZE
         ("SCL", "America/Santiago"),  // SCL
         ("SEA", "America/Los_Angeles"),  // SEA
         ("SFO", "America/Los_Angeles"),  // SFO
+        ("SAN", "America/Los_Angeles"),  // SAN
         ("SIN", "Asia/Singapore"),  // SIN
-        ("SOU", "Europe/London"),  // SOU
+        ("SKG", "Europe/Athens"),  // SKG
+        ("SKP", "Europe/Skopje"),  // SKP
+        ("SOF", "Europe/Sofia"),  // SOF
+        ("SPU", "Europe/Zagreb"),  // SPU
         ("SSA", "America/Bahia"),  // SSA
+        ("SOU", "Europe/London"),  // SOU
         ("STN", "Europe/London"),  // STN
         ("STO", "Europe/Stockholm"),  // STO
         ("STT", "America/St_Thomas"),  // STT
+        ("STR", "Europe/Berlin"),  // STR
+        ("SUF", "Europe/Rome"),  // SUF
+        ("SVG", "Europe/Oslo"),  // SVG
         ("SYD", "Australia/Sydney"),  // SYD
         ("TLV", "Asia/Jerusalem"),  // TLV
+        ("TAT", "Europe/Bratislava"),  // TAT
+        ("TFN", "Atlantic/Canary"),  // TFN
+        ("TOS", "Europe/Oslo"),  // TOS
         ("TPA", "America/New_York"),  // TPA
+        ("TPS", "Europe/Rome"),  // TPS
+        ("TUF", "Europe/Paris"),  // TUF
         ("TUN", "Africa/Tunis"),  // TUN
         ("UVF", "America/St_Lucia"),  // UVF
+        ("VCE", "Europe/Rome"),  // VCE
         ("VIE", "Europe/Vienna"),  // VIE
+        ("VLC", "Europe/Madrid"),  // VLC
+        ("VNO", "Europe/Vilnius"),  // VNO
         ("WAW", "Europe/Warsaw"),  // WAW
+        ("WRO", "Europe/Warsaw"),  // WRO
+        ("XCR", "Europe/Paris"),  // XCR
         ("YUL", "America/Toronto"),  // YUL
         ("YVR", "America/Vancouver"),  // YVR
         ("YYZ", "America/Toronto"),  // YYZ
+        ("ZAD", "Europe/Zagreb"),  // ZAD
+        ("ZAG", "Europe/Zagreb"),  // ZAG
         ("ZRH", "Europe/Zurich")  // ZRH
     ]
     

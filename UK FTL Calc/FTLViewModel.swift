@@ -50,7 +50,7 @@ class FTLViewModel: ObservableObject {
     // MARK: - FTL Factors
     @Published var ftlFactors = FTLFactors()
     
-    // MARK: - Profile Settings (sync with ProfileView)
+    // MARK: - Profile Settings (sync with UserSettings)
     @AppStorage("homeBase") var homeBase: String = "LHR"
     @AppStorage("secondHomeBase") private var secondHomeBase: String = ""
     
@@ -282,6 +282,7 @@ class FTLViewModel: ObservableObject {
         )
         ftlFactors.isAcclimatised = acclimatisationStatus.isAcclimatised
         ftlFactors.shouldBeAcclimatised = acclimatisationStatus.shouldBeAcclimatised
+        ftlFactors.acclimatisationReason = acclimatisationStatus.reason
         
         print("DEBUG: Acclimatisation - Time zone diff: \(ftlFactors.timeZoneDifference)h, Elapsed: \(ftlFactors.elapsedTimeHours)h, First sector: \(ftlFactors.isFirstSector), Reason: \(acclimatisationStatus.reason)")
         
@@ -328,7 +329,9 @@ class FTLViewModel: ObservableObject {
         aiAnalysisResult = AIAnalysisService.analyzeFTLCompliance(
             currentFlight: flightRecord,
             previousFlights: [],
-            pilotType: .multiPilot
+            pilotType: .multiPilot,
+            isAugmentedCrew: ftlFactors.hasAugmentedCrew,
+            hasInflightRest: ftlFactors.hasInFlightRest
         )
         isLoading = false
     }
@@ -355,6 +358,7 @@ class FTLViewModel: ObservableObject {
         
         // Clear time zone difference since there's no departure/arrival data
         ftlFactors.timeZoneDifference = 0
+        ftlFactors.acclimatisationReason = ""
     }
     
     func resetCalculationState() {

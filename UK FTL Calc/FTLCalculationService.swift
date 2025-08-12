@@ -49,13 +49,9 @@ class FTLCalculationService {
         if hasStandbyDuty, let standbyType = standbyType {
             switch standbyType {
             case .homeStandby:
-                if !standbyStartTime.isEmpty && !dutyEndTime.isEmpty {
-                    actualDutyTime = calculateHomeStandbyFDP(standbyStartTime: standbyStartTime, dutyEndTime: dutyEndTime)
-                    print("DEBUG: calculateFTLCompliance - homeStandby actualDutyTime: \(actualDutyTime)")
-                } else {
-                    actualDutyTime = dutyTime
-                    print("DEBUG: calculateFTLCompliance - homeStandby fallback actualDutyTime: \(actualDutyTime)")
-                }
+                // For home standby, duty time starts from report time (not standby start time)
+                actualDutyTime = dutyTime
+                print("DEBUG: calculateFTLCompliance - homeStandby actualDutyTime: \(actualDutyTime)")
             case .airportStandby:
                 if !standbyStartTime.isEmpty && !dutyEndTime.isEmpty {
                     actualDutyTime = calculateAirportStandbyFDP(standbyStartTime: standbyStartTime, dutyEndTime: dutyEndTime)
@@ -83,8 +79,28 @@ class FTLCalculationService {
             standbyStartTime: standbyStartTime
         )
         
-        let maxFDP = regulatoryFDPResult.maxFDP
+        var maxFDP = regulatoryFDPResult.maxFDP
         print("DEBUG: Regulatory FDP Result - maxFDP: \(maxFDP), acclimatisation: \(regulatoryFDPResult.acclimatisationState)")
+        
+        // Apply home standby FDP reduction if applicable (Rule v(b))
+        if hasStandbyDuty, let standbyType = standbyType, standbyType == .homeStandby {
+            if !standbyStartTime.isEmpty && !reportTime.isEmpty {
+                let homeStandbyResult = RegulatoryTableLookup.calculateHomeStandbyFDPReduction(
+                    standbyStartTime: standbyStartTime,
+                    reportTime: reportTime,
+                    hasInflightRest: ftlFactors.hasInFlightRest,
+                    hasSplitDuty: ftlFactors.hasSplitDuty
+                )
+                
+                if homeStandbyResult.fdpReduction > 0 {
+                    maxFDP = max(0.0, maxFDP - homeStandbyResult.fdpReduction)
+                    print("DEBUG: Home Standby FDP Reduction applied - standbyDuration: \(homeStandbyResult.standbyDuration), threshold: \(homeStandbyResult.threshold), reduction: \(homeStandbyResult.fdpReduction), new maxFDP: \(maxFDP)")
+                    print("DEBUG: Home Standby explanation: \(homeStandbyResult.explanation)")
+                } else {
+                    print("DEBUG: Home Standby - no FDP reduction needed (standbyDuration: \(homeStandbyResult.standbyDuration), threshold: \(homeStandbyResult.threshold))")
+                }
+            }
+        }
         
         // 1. Daily Limits Check (now using regulatory FDP)
         let dailyCheck = checkDailyLimits(
@@ -182,7 +198,7 @@ class FTLCalculationService {
             sectors: 1, // Default to 1 sector - could be enhanced to count actual sectors
             lastHomebaseReportTime: ftlFactors.originalHomeBaseReportTime,
             currentLocationTimeZone: getTimeZoneForAirport(departure),
-            previousAcclimatisedTimeZone: getTimeZoneForAirport(ftlFactors.homeBase ?? "LHR"),
+            previousAcclimatisedTimeZone: getTimeZoneForAirport(ftlFactors.homeBase),
             inflightRestFacility: ftlFactors.hasInFlightRest ? getRestFacilityClass(ftlFactors.restFacilityType) : nil,
             additionalCrew: ftlFactors.hasAugmentedCrew ? ftlFactors.numberOfAdditionalPilots : 0,
             delayedReportingNotifications: nil, // Would need to be tracked
@@ -192,7 +208,8 @@ class FTLCalculationService {
             standbyType: standbyType,
             dutyEndTime: "00:00", // Placeholder
             flightTimes: [flightTime], // Pass the calculated flight time for long flight detection
-            preCalculatedElapsedTime: ftlFactors.elapsedTimeHours // NEW: Pass the pre-calculated elapsed time
+            preCalculatedElapsedTime: ftlFactors.elapsedTimeHours, // NEW: Pass the pre-calculated elapsed time
+            hasSplitDuty: ftlFactors.hasSplitDuty // Pass the split duty flag
         )
         
                 // Create a modified calculator that uses the pre-determined acclimatisation state
@@ -203,20 +220,26 @@ class FTLCalculationService {
         // The acclimatisation status has already been determined by UKCAALimits.determineAcclimatisationStatus
         // We need to map the result to the correct state based on the actual Table 1 result
         
-        // Enhanced logic to properly distinguish between Result B, D, and X
-        if ftlFactors.isAcclimatised && ftlFactors.shouldBeAcclimatised {
-            // Both are true - this could be Result 'D' or Result 'B' (first sector from home base)
-            // For first sectors from home base, we need to check if this is actually Result 'B'
-            // This would be the case when both flags are true but it's a first sector from home base
-            // For now, we'll use a heuristic: if both are true, it's likely Result 'B' for first sectors
-            // The more precise logic would require checking time zone difference and elapsed time
-            return "B" // First sector from home base - Result 'B' (acclimatised to home base)
-        } else if ftlFactors.isAcclimatised {
-            return "D" // Acclimatised to current departure - Result 'D'
-        } else if ftlFactors.shouldBeAcclimatised {
-            return "B" // Acclimatised to home base - Result 'B'
+        // Use the actual reason from Table 1 to determine the correct acclimatisation state
+        if ftlFactors.acclimatisationReason.contains("Result D") {
+            return "D" // Acclimatised to current departure - use Table 2 with departure local time
+        } else if ftlFactors.acclimatisationReason.contains("Result B") {
+            return "B" // Acclimatised to home base - use Table 2 with home base local time
+        } else if ftlFactors.acclimatisationReason.contains("Result X") {
+            return "X" // Unknown acclimatisation state - use Table 3
         } else {
-            return "X" // Unknown acclimatisation state - Result 'X'
+            // Fallback logic for backward compatibility
+            if ftlFactors.isAcclimatised && ftlFactors.shouldBeAcclimatised {
+                // Both are true - this could be Result 'D' or Result 'B'
+                // Default to 'D' as it's more common for multi-sector duties
+                return "D"
+            } else if ftlFactors.isAcclimatised {
+                return "D" // Acclimatised to current departure - Result 'D'
+            } else if ftlFactors.shouldBeAcclimatised {
+                return "B" // Acclimatised to home base - Result 'B'
+            } else {
+                return "X" // Unknown acclimatisation state - Result 'X'
+            }
         }
     }
     
@@ -417,8 +440,12 @@ class FTLCalculationService {
     }
     
     private static func calculateCommandersDiscretion(input: FDPCalculationInput) -> Double {
-        // Commander's discretion can extend FDP by up to 2 hours
-        return 2.0
+        // Commander's discretion: 3 hours for augmented crew with in-flight rest, 2 hours for standard crew
+        if input.additionalCrew >= 1 && input.inflightRestFacility != nil {
+            return 3.0 // 3 hours for augmented crew with in-flight rest
+        } else {
+            return 2.0 // 2 hours for standard crew
+        }
     }
     
     private static func calculateStandbyAdjustment(input: FDPCalculationInput, standbyType: StandbyType, standbyStartTime: String) -> Double {
@@ -523,42 +550,21 @@ class FTLCalculationService {
             return 0.0
         }
         
-        let calendar = Calendar.current
+        let _ = Calendar.current
         let timeDifference = dutyEnd.timeIntervalSince(standbyStart)
         let hours = timeDifference / 3600.0
         
         return max(0.0, hours)
     }
     
-    // MARK: - Home Standby FDP Calculation
-    // FDP starts 2 hours after standby start time for home standby
-    private static func calculateHomeStandbyFDP(standbyStartTime: String, dutyEndTime: String) -> Double {
-        // Ensure times are in Z format for parsing
-        let standbyTimeZ = standbyStartTime.hasSuffix("z") ? standbyStartTime : standbyStartTime + "z"
-        let dutyEndTimeZ = dutyEndTime.hasSuffix("z") ? dutyEndTime : dutyEndTime + "z"
-        
-        print("DEBUG: calculateHomeStandbyFDP - standbyStartTime: '\(standbyStartTime)', dutyEndTime: '\(dutyEndTime)'")
-        print("DEBUG: calculateHomeStandbyFDP - standbyTimeZ: '\(standbyTimeZ)', dutyEndTimeZ: '\(dutyEndTimeZ)'")
-        
-        // Use the existing calculateHoursBetween function which handles overnight periods correctly
-        let fdpStartTime = standbyStartTime.hasSuffix("z") ? standbyStartTime : standbyStartTime + "z"
-        let fdpStartTimePlus2 = TimeUtilities.addHours(fdpStartTime, hours: 2.0)
-        
-        print("DEBUG: calculateHomeStandbyFDP - fdpStartTime: '\(fdpStartTime)', fdpStartTimePlus2: '\(fdpStartTimePlus2)'")
-        
-        let result = TimeUtilities.calculateHoursBetween(fdpStartTimePlus2, dutyEndTime)
-        
-        print("DEBUG: calculateHomeStandbyFDP - result: \(result)")
-        
-        return result
-    }
+
     
     // MARK: - Airport Standby FDP Calculation
     // FDP starts from standby start time for airport standby
     private static func calculateAirportStandbyFDP(standbyStartTime: String, dutyEndTime: String) -> Double {
         // Ensure times are in Z format for parsing
-        let standbyTimeZ = standbyStartTime.hasSuffix("z") ? standbyStartTime : standbyStartTime + "z"
-        let dutyEndTimeZ = dutyEndTime.hasSuffix("z") ? dutyEndTime : dutyEndTime + "z"
+        let _ = standbyStartTime.hasSuffix("z") ? standbyStartTime : standbyStartTime + "z"
+        let _ = dutyEndTime.hasSuffix("z") ? dutyEndTime : dutyEndTime + "z"
         
         // Use the existing calculateHoursBetween function which handles overnight periods correctly
         let fdpStartTime = standbyStartTime.hasSuffix("z") ? standbyStartTime : standbyStartTime + "z"
@@ -572,9 +578,9 @@ class FTLCalculationService {
         var warnings: [String] = []
         var violations: [String] = []
         
-        let calendar = Calendar.current
+        let _ = Calendar.current
         let currentDate = Date()
-        let weekStart = calendar.dateInterval(of: .weekOfYear, for: currentDate)?.start ?? currentDate
+        let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: currentDate)?.start ?? currentDate
         
         // Filter flights from current week
         let weeklyFlights = previousFlights.filter { flight in
@@ -586,7 +592,7 @@ class FTLCalculationService {
         
         // Calculate weekly totals
         let weeklyDutyTime = weeklyFlights.reduce(0) { $0 + $1.dutyTime } + currentFlight.dutyTime
-        let weeklyFlightTime = weeklyFlights.reduce(0) { $0 + $1.flightTime } + currentFlight.flightTime
+        let _ = weeklyFlights.reduce(0) { $0 + $1.flightTime } + currentFlight.flightTime
         
         // Use regulatory absolute limits
         let absoluteLimits = RegulatoryTableLookup.getAbsoluteLimits()
@@ -614,9 +620,9 @@ class FTLCalculationService {
         var warnings: [String] = []
         var violations: [String] = []
         
-        let calendar = Calendar.current
+        let _ = Calendar.current
         let currentDate = Date()
-        let monthStart = calendar.dateInterval(of: .month, for: currentDate)?.start ?? currentDate
+        let monthStart = Calendar.current.dateInterval(of: .month, for: currentDate)?.start ?? currentDate
         
         // Filter flights from current month
         let monthlyFlights = previousFlights.filter { flight in

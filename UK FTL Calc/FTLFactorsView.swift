@@ -588,6 +588,119 @@ struct RestFacilitySelectionView: View {
     }
 }
 
+// MARK: - In-Flight Rest Facility Selection View
+struct InFlightRestFacilitySelectionView: View {
+    @Binding var restFacilityType: RestFacilityType
+    @Binding var hasInFlightRest: Bool
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // Header
+                VStack(spacing: 12) {
+                    Image(systemName: "bed.double")
+                        .font(.system(size: 40))
+                        .foregroundColor(.blue)
+                    
+                    Text("In-Flight Rest Facility")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Select the type of rest facility available during your flight.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                
+                // Rest Facility Options
+                VStack(spacing: 16) {
+                    ForEach([RestFacilityType.class1, RestFacilityType.class2, RestFacilityType.class3, RestFacilityType.none], id: \.self) { facilityType in
+                        Button(action: {
+                            restFacilityType = facilityType
+                            
+                            // Auto-tick in-flight rest for Class 1, 2, or 3 rest facilities
+                            if facilityType == .class1 || facilityType == .class2 || facilityType == .class3 {
+                                hasInFlightRest = true
+                            } else {
+                                hasInFlightRest = false
+                            }
+                            
+                            // Close popup
+                            isPresented = false
+                        }) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(facilityType.rawValue)
+                                        .font(.headline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    
+                                    Spacer()
+                                    
+                                    if restFacilityType == facilityType {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.blue)
+                                            .font(.title2)
+                                    }
+                                }
+                                
+                                Text(facilityType.description)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.leading)
+                                
+                                // Show FDP extension benefit
+                                if facilityType != .none {
+                                    HStack {
+                                        Image(systemName: "clock.badge.plus")
+                                            .font(.caption)
+                                            .foregroundColor(.green)
+                                        
+                                        Text("Extends FDP limits")
+                                            .font(.caption)
+                                            .foregroundColor(.green)
+                                            .fontWeight(.medium)
+                                        
+                                        Spacer()
+                                    }
+                                }
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(restFacilityType == facilityType ? Color.blue.opacity(0.1) : Color(.systemBackground))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(restFacilityType == facilityType ? Color.blue : Color(.systemGray4), lineWidth: 2)
+                                    )
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Rest Facility")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        // Reset to previous state if cancelled
+                        if restFacilityType == .none {
+                            hasInFlightRest = false
+                        }
+                        isPresented = false
+                    }
+                }
+            }
+        }
+    }
+}
+
 #Preview {
     FTLFactorsView(viewModel: FTLViewModel())
 }
@@ -699,7 +812,7 @@ struct StandbyTypeSelectionView: View {
         // Standby duty limits based on UK CAA EASA FTL Regulations
         switch standbyType {
         case .homeStandby:
-            return "16h total duty" // Home standby - maximum 16 hours total duty (standby + FDP)
+                            return "FDP reduction based on standby duration" // Home standby - FDP reduction based on standby duration exceeding threshold
         case .airportStandby:
             return "No limit" // Airport standby - no maximum time, but all counts towards FDP
         }

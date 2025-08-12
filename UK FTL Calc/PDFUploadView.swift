@@ -32,11 +32,7 @@ struct PDFUploadView: View {
             // Upload Button
             Button(action: {
                 print("DEBUG: Select PDF button tapped")
-                do {
-                    showingDocumentPicker = true
-                } catch {
-                    print("DEBUG: Error showing document picker: \(error)")
-                }
+                showingDocumentPicker = true
             }) {
                 HStack {
                     Image(systemName: "doc.badge.plus")
@@ -309,107 +305,8 @@ struct PDFUploadFlightRow: View {
 }
 
 // MARK: - Flight Selection View
-struct FlightSelectionView: View {
-    let allFlights: [FlightRecord]
-    let onFlightSelected: (FlightRecord) -> Void
-    let onCancel: () -> Void
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                // Header
-                VStack(spacing: 16) {
-                    Image(systemName: "airplane.circle.fill")
-                        .font(.system(size: 50))
-                        .foregroundColor(.blue)
-                    
-                    Text("Select Flight to Analyze")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("Choose which flight you want to analyze for FTL calculations")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, 20)
-                
-                // Flight List
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(allFlights) { flight in
-                            FlightSelectionRow(flight: flight) {
-                                onFlightSelected(flight)
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-                
-                Spacer()
-            }
-            .padding()
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        onCancel()
-                    }
-                }
-            }
-        }
-    }
-}
 
 // MARK: - Flight Selection Row
-struct FlightSelectionRow: View {
-    let flight: FlightRecord
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 16) {
-                // Flight Icon
-                VStack {
-                    Image(systemName: "airplane")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                    Text(flight.departure)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-                
-                // Flight Details
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(flight.flightNumber)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                    
-                    Text("\(flight.departure) → \(flight.arrival)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Text("Report: \(flight.reportTime) | Takeoff: \(flight.takeoffTime)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                // Arrow
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(10)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
 
 #Preview {
     PDFUploadView { selectedFlights, allFlights in

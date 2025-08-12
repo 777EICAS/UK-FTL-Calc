@@ -23,7 +23,8 @@ class PDFRosterParser: ObservableObject {
             // Debug: Print file information
             print("DEBUG: Attempting to load PDF from URL: \(url)")
             print("DEBUG: File exists: \(FileManager.default.fileExists(atPath: url.path))")
-            print("DEBUG: File size: \(try? FileManager.default.attributesOfItem(atPath: url.path)[.size] ?? "Unknown")")
+            let fileSize = try? FileManager.default.attributesOfItem(atPath: url.path)[.size]
+            print("DEBUG: File size: \(fileSize ?? "Unknown")")
             
             // Load PDF document
             guard let pdfDocument = PDFDocument(url: url) else {

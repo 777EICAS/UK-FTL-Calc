@@ -25,6 +25,7 @@ struct FDPCalculationInput {
     let dutyEndTime: String
     let flightTimes: [Double]? // Individual sector flight times for long flight detection
     let preCalculatedElapsedTime: Double? // NEW: Pre-calculated elapsed time from XML data
+    let hasSplitDuty: Bool // Whether split duty is being used
 }
 
 // MARK: - FDP Calculation Result
@@ -174,18 +175,22 @@ class RegulatoryFDPCalculator {
         // We need to determine if this is Result B, D, or X based on the logic
         
         // Enhanced logic to properly distinguish between Result B, D, and X
-        if acclimatisationResult.isAcclimatised && acclimatisationResult.shouldBeAcclimatised {
-            // Both are true - this could be Result 'D' or Result 'B' (first sector from home base)
-            // Check if this is a first sector from home base (0h time zone difference)
-            if timeZoneDiff == 0 && elapsedTimeHours == 0 {
-                return "B" // First sector from home base - Result 'B' (acclimatised to home base)
-            } else {
-                return "D" // Acclimatised to current departure - Result 'D'
-            }
-        } else if acclimatisationResult.shouldBeAcclimatised {
+        // The acclimatisationResult.reason now contains the specific result (B, D, or X)
+        if acclimatisationResult.reason.contains("Result B") {
             return "B" // Acclimatised to home base - Result 'B'
-        } else {
+        } else if acclimatisationResult.reason.contains("Result D") {
+            return "D" // Acclimatised to current departure - Result 'D'
+        } else if acclimatisationResult.reason.contains("Result X") {
             return "X" // Unknown acclimatisation state - Result 'X'
+        } else {
+            // Fallback logic based on the boolean values
+            if acclimatisationResult.isAcclimatised && acclimatisationResult.shouldBeAcclimatised {
+                return "B" // Acclimatised to home base - Result 'B'
+            } else if acclimatisationResult.isAcclimatised && !acclimatisationResult.shouldBeAcclimatised {
+                return "D" // Acclimatised to current departure - Result 'D'
+            } else {
+                return "X" // Unknown acclimatisation state - Result 'X'
+            }
         }
     }
     
@@ -304,6 +309,7 @@ class RegulatoryFDPCalculator {
     // MARK: - Step 6: Commander's Discretion
     
     private static func calculateCommandersDiscretion(input: FDPCalculationInput) -> Double {
+        // Commander's discretion: 3 hours for augmented crew with in-flight rest, 2 hours for standard crew
         if input.additionalCrew >= 1 && input.inflightRestFacility != nil {
             return 3.0 // 3 hours for augmented crew with in-flight rest
         } else {
@@ -362,14 +368,6 @@ class RegulatoryFDPCalculator {
     }
 }
 
-// MARK: - Extension for FDPCalculationInput
-
-extension FDPCalculationInput {
-    var hasSplitDuty: Bool {
-        // This would need to be determined from the input data
-        // For now, return false
-        return false
-    }
-} 
+ 
 
  

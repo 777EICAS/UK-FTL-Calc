@@ -168,8 +168,8 @@ class XMLRosterParser: ObservableObject {
         }
         
         // Determine which sectors are outbound vs inbound based on trip context
-        // A sector is outbound if it's the FIRST sector in the trip (departing from home base)
-        // A sector is inbound if it's the LAST sector in the trip (returning to home base)
+        // A sector is outbound if it departs from the home base (LHR/LGW)
+        // A sector is inbound if it returns to the home base
         
         // Sort sectors by relative departure day to determine order
         let sortedSectors = allSectors.sorted { sector1, sector2 in
@@ -178,12 +178,18 @@ class XMLRosterParser: ObservableObject {
             return day1 < day2
         }
         
+        // Determine home base from the trip (usually LHR or LGW)
+        let homeBase = determineHomeBase(from: duties)
+        print("DEBUG: XML Parser - Trip \(tripNumber) home base determined: \(homeBase)")
+        
+        // Create new sectors with correct outbound/inbound classification
+        var updatedSectors: [XMLSector] = []
+        
         for (index, sector) in sortedSectors.enumerated() {
-            // First sector in trip is outbound, last sector is inbound
-            let isOutbound = index == 0
+            // A sector is outbound if it departs from the home base
+            let isOutbound = sector.departure == homeBase
             
-            // Create new sector with updated properties
-            allSectors[allSectors.firstIndex(where: { $0.flightNumber == sector.flightNumber })!] = XMLSector(
+            let updatedSector = XMLSector(
                 flightNumber: sector.flightNumber,
                 departure: sector.departure,
                 arrival: sector.arrival,
@@ -193,23 +199,74 @@ class XMLRosterParser: ObservableObject {
                 pilotCount: sector.pilotCount,
                 flyingHours: sector.flyingHours,
                 isOutbound: isOutbound,
-                tripNumber: tripNumber
+                tripNumber: tripNumber,
+                dutyNumber: sector.dutyNumber,
+                isShuttleTrip: false // Will be set later
             )
+            
+            updatedSectors.append(updatedSector)
             
             print("DEBUG: XML Parser - Trip \(tripNumber) sector \(sector.flightNumber): \(sector.departure)-\(sector.arrival) is \(isOutbound ? "OUTBOUND" : "INBOUND") (day \(sector.relativeDepartureDay), position \(index + 1)/\(sortedSectors.count))")
         }
         
-        print("DEBUG: XML Parser - Created Trip \(tripNumber) with \(allSectors.count) sectors:")
-        for (index, sector) in allSectors.enumerated() {
+        print("DEBUG: XML Parser - Created Trip \(tripNumber) with \(updatedSectors.count) sectors:")
+        for (index, sector) in updatedSectors.enumerated() {
             print("DEBUG: XML Parser -   Sector \(index + 1): \(sector.flightNumber) \(sector.departure)-\(sector.arrival) (\(sector.isOutbound ? "OUTBOUND" : "INBOUND")) on day \(sector.relativeDepartureDay)")
+        }
+        
+        // NEW: Set isShuttleTrip flag for all sectors in this trip
+        let isShuttleTrip = duties.contains { duty in
+            duty.sectors.count > 1
+        }
+        print("DEBUG: XML Parser - Trip \(tripNumber) shuttle trip detection: \(isShuttleTrip) (duties with multiple sectors: \(duties.filter { $0.sectors.count > 1 }.count))")
+        
+        // Update all sectors with the shuttle trip flag
+        let finalSectors = updatedSectors.map { sector in
+            XMLSector(
+                flightNumber: sector.flightNumber,
+                departure: sector.departure,
+                arrival: sector.arrival,
+                departureTime: sector.departureTime,
+                arrivalTime: sector.arrivalTime,
+                relativeDepartureDay: sector.relativeDepartureDay,
+                pilotCount: sector.pilotCount,
+                flyingHours: sector.flyingHours,
+                isOutbound: sector.isOutbound,
+                tripNumber: sector.tripNumber,
+                dutyNumber: sector.dutyNumber,
+                isShuttleTrip: isShuttleTrip // NEW: Mark as shuttle if any duty has multiple sectors
+            )
         }
         
         return Trip(
             tripNumber: tripNumber,
             startDate: startDate,
-            sectors: allSectors,
+            sectors: finalSectors,
             isHeavyCrew: isHeavyCrew
         )
+    }
+    
+    // NEW: Helper function to determine home base from duties
+    private func determineHomeBase(from duties: [XMLDuty]) -> String {
+        // Look for the first duty with a sector departing from LHR or LGW
+        for duty in duties {
+            for sector in duty.sectors {
+                if sector.departure == "LHR" || sector.departure == "LGW" {
+                    print("DEBUG: XML Parser - Found home base departure: \(sector.departure) in duty \(duty.dutyNumber)")
+                    return sector.departure
+                }
+            }
+        }
+        
+        // Fallback: if no LHR/LGW departure found, use the first departure station
+        if let firstDuty = duties.first, let firstSector = firstDuty.sectors.first {
+            print("DEBUG: XML Parser - No LHR/LGW departure found, using first departure: \(firstSector.departure)")
+            return firstSector.departure
+        }
+        
+        // Default fallback
+        print("DEBUG: XML Parser - No departure stations found, defaulting to LHR")
+        return "LHR"
     }
     
     private func parseDuties(from block: String, isHeavyCrew: Bool, tripStartDate: String, crewComplements: [String: Int]) -> [XMLDuty] {
@@ -253,7 +310,7 @@ class XMLRosterParser: ObservableObject {
         print("DEBUG: XML Parser - Duty \(dutyNumber) duty hours: \(dutyHours)")
         
         // Extract sectors
-        let sectors = parseSectors(from: dutyBlock, isHeavyCrew: isHeavyCrew, tripStartDate: tripStartDate, crewComplements: crewComplements)
+        let sectors = parseSectors(from: dutyBlock, isHeavyCrew: isHeavyCrew, tripStartDate: tripStartDate, crewComplements: crewComplements, dutyNumber: dutyNumber)
         print("DEBUG: XML Parser - Duty \(dutyNumber) has \(sectors.count) sectors")
         
         // Validate that we have at least one sector
@@ -269,7 +326,7 @@ class XMLRosterParser: ObservableObject {
         )
     }
     
-    private func parseSectors(from dutyBlock: String, isHeavyCrew: Bool, tripStartDate: String, crewComplements: [String: Int]) -> [XMLSector] {
+    private func parseSectors(from dutyBlock: String, isHeavyCrew: Bool, tripStartDate: String, crewComplements: [String: Int], dutyNumber: String) -> [XMLSector] {
         var sectors: [XMLSector] = []
         
         let sectorBlocks = dutyBlock.components(separatedBy: "<Sector>")
@@ -282,7 +339,7 @@ class XMLRosterParser: ObservableObject {
         
         for (index, sectorBlock) in sectorBlocks.dropFirst().enumerated() {
             print("DEBUG: XML Parser - Parsing sector \(index + 1)")
-            if let sector = parseSector(sectorBlock, isHeavyCrew: isHeavyCrew, tripStartDate: tripStartDate, crewComplements: crewComplements) {
+            if let sector = parseSector(sectorBlock, isHeavyCrew: isHeavyCrew, tripStartDate: tripStartDate, crewComplements: crewComplements, dutyNumber: dutyNumber) {
                 sectors.append(sector)
                 print("DEBUG: XML Parser - Successfully parsed sector: \(sector.flightNumber) \(sector.departure)-\(sector.arrival)")
             } else {
@@ -293,7 +350,7 @@ class XMLRosterParser: ObservableObject {
         return sectors
     }
     
-        private func parseSector(_ sectorBlock: String, isHeavyCrew: Bool, tripStartDate: String, crewComplements: [String: Int]) -> XMLSector? {
+        private func parseSector(_ sectorBlock: String, isHeavyCrew: Bool, tripStartDate: String, crewComplements: [String: Int], dutyNumber: String) -> XMLSector? {
         // Extract sector details
         guard let flightNumberMatch = sectorBlock.range(of: "<FlightNumber>(.*?)</FlightNumber>", options: .regularExpression),
               let rawFlightNumber = extractValue(from: sectorBlock, start: flightNumberMatch.lowerBound, end: flightNumberMatch.upperBound),
@@ -361,7 +418,9 @@ class XMLRosterParser: ObservableObject {
             pilotCount: pilotCount,
             flyingHours: flyingHours,
             isOutbound: false, // Default to inbound for now, will be set later
-            tripNumber: "" // Will be set later
+            tripNumber: "", // Will be set later
+            dutyNumber: dutyNumber, // NEW: Set duty number from parameter
+            isShuttleTrip: false // Will be set later based on trip structure
         )
     }
     
@@ -520,23 +579,46 @@ class XMLRosterParser: ObservableObject {
                     elapsedTime = 0.0
                     print("DEBUG: XML Parser - Outbound sector \(sector.flightNumber): elapsed time = 0h (trip start)")
                 } else if let outbound = outboundSector {
-                    // Inbound sector: elapsed time from outbound report time to inbound off-block time
+                    // Inbound sector: elapsed time from outbound report time to inbound report time
                     let outboundReportTime = calculateReportTime(departure: outbound.departure, departureTime: outbound.departureTime)
-                    let inboundOffBlockTime = sector.departureTime // Off-block time is departure time
+                    let inboundReportTime = calculateReportTime(departure: sector.departure, departureTime: sector.departureTime)
                     
                     // Calculate elapsed time using dates and times
+                    // Use the new function to get the correct report time date for the inbound sector
+                    let outboundReportDate = calculateSectorDate(tripStartDate: xmlFlight.startDate, relativeDay: outbound.relativeDepartureDay)
+                    let inboundReportDate = calculateReportTimeDate(tripStartDate: xmlFlight.startDate, relativeDay: sector.relativeDepartureDay, reportTime: inboundReportTime, offBlockTime: sector.departureTime)
+                    
                     elapsedTime = TimeUtilities.calculateElapsedTimeWithDates(
-                        startDate: calculateSectorDate(tripStartDate: xmlFlight.startDate, relativeDay: outbound.relativeDepartureDay),
+                        startDate: outboundReportDate,
                         startTime: outboundReportTime,
-                        endDate: sectorDate,
-                        endTime: inboundOffBlockTime
+                        endDate: inboundReportDate,
+                        endTime: inboundReportTime
                     )
                     
-                    print("DEBUG: XML Parser - Inbound sector \(sector.flightNumber): elapsed time = \(elapsedTime)h (from outbound report \(outboundReportTime) on day \(outbound.relativeDepartureDay) to inbound off-block \(inboundOffBlockTime) on day \(sector.relativeDepartureDay))")
+                    print("DEBUG: XML Parser - Inbound sector \(sector.flightNumber): elapsed time = \(elapsedTime)h (from outbound report \(outboundReportTime) on \(outboundReportDate) to inbound report \(inboundReportTime) on \(inboundReportDate))")
                 } else {
                     // Fallback: no outbound sector found
                     elapsedTime = 0.0
                     print("DEBUG: XML Parser - Warning: No outbound sector found for inbound \(sector.flightNumber), elapsed time = 0h")
+                }
+                
+                // NEW: Calculate elapsed time from trip start for shuttle trips
+                let elapsedTimeFromTripStart: Double
+                if sector.isShuttleTrip, let tripStartReportTime = trip.tripStartReportTime {
+                    // Calculate elapsed time from trip start report time to this duty's report time
+                    let tripStartDate = calculateSectorDate(tripStartDate: xmlFlight.startDate, relativeDay: "0")
+                    let dutyReportDate = calculateReportTimeDate(tripStartDate: xmlFlight.startDate, relativeDay: sector.relativeDepartureDay, reportTime: reportTime, offBlockTime: sector.departureTime)
+                    
+                    elapsedTimeFromTripStart = TimeUtilities.calculateElapsedTimeWithDates(
+                        startDate: tripStartDate,
+                        startTime: tripStartReportTime,
+                        endDate: dutyReportDate,
+                        endTime: reportTime
+                    )
+                    
+                    print("DEBUG: XML Parser - Shuttle trip \(trip.tripNumber) duty \(sector.dutyNumber): elapsed time from trip start = \(elapsedTimeFromTripStart)h")
+                } else {
+                    elapsedTimeFromTripStart = 0.0
                 }
                 
                 let flightRecord = FlightRecord(
@@ -554,7 +636,10 @@ class XMLRosterParser: ObservableObject {
                     pilotCount: sector.pilotCount,
                     tripNumber: sector.tripNumber, // NEW: Include trip number
                     isOutbound: sector.isOutbound, // NEW: Include outbound/inbound flag
-                    elapsedTimeHours: elapsedTime // NEW: Include calculated elapsed time
+                    elapsedTimeHours: elapsedTime, // NEW: Include calculated elapsed time
+                    dutyNumber: sector.dutyNumber, // NEW: Include duty number
+                    isShuttleTrip: sector.isShuttleTrip, // NEW: Include shuttle trip flag
+                    elapsedTimeFromTripStart: elapsedTimeFromTripStart // NEW: Include elapsed time from trip start
                 )
                 
                 flightRecords.append(flightRecord)
@@ -638,6 +723,54 @@ class XMLRosterParser: ObservableObject {
         
         print("DEBUG: XML Parser - Calculated sector date: \(resultDate)")
         return resultDate
+    }
+    
+    // NEW: Function to calculate the correct date for report time calculation
+    // This considers that late report times (like 23:45z) should be on the previous day
+    // relative to the off block time for accurate elapsed time calculations
+    private func calculateReportTimeDate(tripStartDate: String, relativeDay: String, reportTime: String, offBlockTime: String) -> String {
+        print("DEBUG: XML Parser - Calculating report time date from trip start: \(tripStartDate), relative day: \(relativeDay), report time: \(reportTime), off block: \(offBlockTime)")
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        guard let baseDate = dateFormatter.date(from: tripStartDate),
+              let relativeDays = Int(relativeDay) else {
+            print("DEBUG: XML Parser - Failed to parse date or relative day, returning trip start date")
+            return tripStartDate
+        }
+        
+        // First, calculate the base sector date
+        let sectorDate = Calendar.current.date(byAdding: .day, value: relativeDays, to: baseDate) ?? baseDate
+        
+        // Parse the report time and off block time to determine if we need to adjust the date
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
+        
+        guard let reportTimeDate = timeFormatter.date(from: reportTime),
+              let offBlockTimeDate = timeFormatter.date(from: offBlockTime) else {
+            print("DEBUG: XML Parser - Failed to parse times, returning base sector date")
+            return dateFormatter.string(from: sectorDate)
+        }
+        
+        // If report time is late in the day (after 18:00) and off block time is early in the day (before 06:00),
+        // then the report time should be on the previous day
+        let reportHour = Calendar.current.component(.hour, from: reportTimeDate)
+        let offBlockHour = Calendar.current.component(.hour, from: offBlockTimeDate)
+        
+        let needsDateAdjustment = reportHour >= 18 && offBlockHour <= 6
+        
+        if needsDateAdjustment {
+            // Adjust the date back by one day for the report time
+            let adjustedDate = Calendar.current.date(byAdding: .day, value: -1, to: sectorDate) ?? sectorDate
+            let resultDate = dateFormatter.string(from: adjustedDate)
+            print("DEBUG: XML Parser - Adjusted report time date: \(resultDate) (report time \(reportTime) is late, off block \(offBlockTime) is early)")
+            return resultDate
+        } else {
+            let resultDate = dateFormatter.string(from: sectorDate)
+            print("DEBUG: XML Parser - Using base sector date for report time: \(resultDate)")
+            return resultDate
+        }
     }
     
     private func parseDuration(_ duration: String) -> Double {
@@ -734,6 +867,9 @@ struct XMLSector {
     let flyingHours: String
     let isOutbound: Bool // NEW: Track if this is outbound or inbound
     let tripNumber: String // NEW: Link sector to trip
+    // NEW: Additional fields for shuttle trips
+    let dutyNumber: String // NEW: Which duty this sector belongs to
+    let isShuttleTrip: Bool // NEW: Whether this sector is part of a shuttle trip
 }
 
 // NEW: Trip structure to group sectors together
@@ -742,6 +878,32 @@ struct Trip {
     let startDate: String
     let sectors: [XMLSector]
     let isHeavyCrew: Bool
+    
+    // NEW: Shuttle trip detection
+    var hasShuttleDuties: Bool {
+        // Check if any duty has multiple sectors
+        let dutySectorCounts = Dictionary(grouping: sectors) { $0.dutyNumber }
+        return dutySectorCounts.values.contains { $0.count > 1 }
+    }
+    
+    // NEW: Trip start report time for elapsed time calculations
+    var tripStartReportTime: String? {
+        // Find the first sector (outbound) and calculate its report time
+        guard let outbound = outboundSector else { return nil }
+        // Calculate report time: LHR/LGW = -90min, others = -75min
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
+        
+        guard let departureDate = timeFormatter.date(from: outbound.departureTime) else {
+            return nil
+        }
+        
+        let isHomeBase = (outbound.departure == "LHR" || outbound.departure == "LGW")
+        let reportOffsetMinutes: Int = isHomeBase ? -90 : -75
+        
+        let reportDate = departureDate.addingTimeInterval(TimeInterval(reportOffsetMinutes * 60))
+        return timeFormatter.string(from: reportDate)
+    }
     
     // Helper computed properties
     var outboundSector: XMLSector? {

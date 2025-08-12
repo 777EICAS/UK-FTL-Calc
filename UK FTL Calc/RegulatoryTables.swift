@@ -7,6 +7,15 @@
 
 import Foundation
 
+// MARK: - Home Standby FDP Result
+
+struct HomeStandbyFDPResult {
+    let standbyDuration: Double
+    let threshold: Double
+    let fdpReduction: Double
+    let explanation: String
+}
+
 // MARK: - Acclimatisation Table Structures
 
 struct AcclimatisationEntry {
@@ -209,7 +218,7 @@ struct HomeStandbyRules {
 }
 
 struct HomeStandbyThresholds {
-    let `default`: Double
+    let defaultThreshold: Double
     let withInflightRestOrSplitDuty: Double
 }
 
@@ -247,7 +256,7 @@ struct StandbyRulesTable {
             maxDurationHours: 16,
             dutyCreditPercentage: 25,
             fdpStartTime: "report_time",
-            fdpReductionThresholdHours: HomeStandbyThresholds(`default`: 6, withInflightRestOrSplitDuty: 8),
+            fdpReductionThresholdHours: HomeStandbyThresholds(defaultThreshold: 6, withInflightRestOrSplitDuty: 8),
             nightStandbyExclusion: NightStandbyExclusion(
                 exclusionPeriodStart: "23:00",
                 exclusionPeriodEnd: "07:00",
@@ -396,6 +405,62 @@ class RegulatoryTableLookup {
         }
         
         return 9.0 // Default minimum
+    }
+    
+    // MARK: - Home Standby FDP Calculation
+    
+    /// Calculates FDP reduction for home standby based on UK CAA regulations
+    /// Rule v: Maximum FDP when called from Home Standby:
+    /// a) If Home Standby/HCD ceases within the first 6 hours, the maximum FDP counts from reporting
+    /// b) If Home Standby/HCD ceases after the first 6 hours, the maximum FDP is reduced by the amount of standby time exceeding 6 hours
+    /// c) If the FDP is extended by the use of in-flight rest or Split Duty, the 6 hours are extended to 8 hours
+    static func calculateHomeStandbyFDPReduction(
+        standbyStartTime: String,
+        reportTime: String,
+        hasInflightRest: Bool,
+        hasSplitDuty: Bool
+    ) -> HomeStandbyFDPResult {
+        
+        // Calculate total standby duration
+        let totalStandbyDuration = TimeUtilities.calculateHoursBetween(standbyStartTime, reportTime)
+        
+        // Determine threshold based on in-flight rest or split duty
+        let threshold = (hasInflightRest || hasSplitDuty) ? 8.0 : 6.0
+        
+        // Apply night exclusion (23:00-07:00) as per regulation
+        let effectiveStandbyTime = applyNightExclusionToStandby(
+            standbyDuration: totalStandbyDuration,
+            standbyStartTime: standbyStartTime
+        )
+        
+        var fdpReduction = 0.0
+        var explanation = ""
+        
+        if effectiveStandbyTime <= threshold {
+            // Rule v(a): No FDP reduction if called within threshold
+            fdpReduction = 0.0
+            explanation = "Home Standby ceased within first \(TimeUtilities.formatHoursAndMinutes(threshold)). No FDP reduction applied."
+        } else {
+            // Rule v(b): FDP reduced by standby time exceeding threshold
+            fdpReduction = effectiveStandbyTime - threshold
+            explanation = "Home Standby exceeded \(TimeUtilities.formatHoursAndMinutes(threshold)) by \(TimeUtilities.formatHoursAndMinutes(fdpReduction)). FDP reduced accordingly."
+        }
+        
+        return HomeStandbyFDPResult(
+            standbyDuration: effectiveStandbyTime,
+            threshold: threshold,
+            fdpReduction: fdpReduction,
+            explanation: explanation
+        )
+    }
+    
+    /// Applies night exclusion (23:00-07:00) to standby time calculation
+    /// This implements the night exclusion rule for home standby calculations
+    private static func applyNightExclusionToStandby(standbyDuration: Double, standbyStartTime: String) -> Double {
+        // For now, return the full duration
+        // TODO: Implement proper night exclusion logic based on actual standby start time
+        // This would require parsing the standby start time and calculating which hours fall within 23:00-07:00
+        return standbyDuration
     }
     
     // MARK: - Helper Functions

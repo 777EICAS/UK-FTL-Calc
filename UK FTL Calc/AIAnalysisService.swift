@@ -5,7 +5,9 @@ class AIAnalysisService {
     static func analyzeFTLCompliance(
         currentFlight: FlightRecord,
         previousFlights: [FlightRecord],
-        pilotType: PilotType
+        pilotType: PilotType,
+        isAugmentedCrew: Bool = false,
+        hasInflightRest: Bool = false
     ) -> AIAnalysisResult {
         
         // Calculate current usage
@@ -32,7 +34,9 @@ class AIAnalysisService {
             weeklyRemaining: weeklyRemaining,
             monthlyRemaining: monthlyRemaining,
             fatigueRisk: fatigueRisk,
-            pilotType: pilotType
+            pilotType: pilotType,
+            isAugmentedCrew: isAugmentedCrew,
+            hasInflightRest: hasInflightRest
         )
         
         // Generate warnings and recommendations
@@ -168,7 +172,9 @@ class AIAnalysisService {
         weeklyRemaining: Double,
         monthlyRemaining: Double,
         fatigueRisk: FatigueRisk,
-        pilotType: PilotType
+        pilotType: PilotType,
+        isAugmentedCrew: Bool = false,
+        hasInflightRest: Bool = false
     ) -> CommanderDiscretion {
         
         var canExtend = false
@@ -181,7 +187,8 @@ class AIAnalysisService {
             canExtend = true
             
             // Calculate maximum safe extension - UK CAA Regulation 965/2012
-            let safeDailyExtension = min(dailyRemaining, 2.0) // Max 2 hours extension
+            let maxDailyExtension = (isAugmentedCrew && hasInflightRest) ? 3.0 : 2.0 // 3h for augmented crew with rest, 2h for standard
+            let safeDailyExtension = min(dailyRemaining, maxDailyExtension)
             let safeWeeklyExtension = min(weeklyRemaining, 5.0) // Max 5 hours extension
             let safeMonthlyExtension = min(monthlyRemaining, 10.0) // Max 10 hours extension
             
