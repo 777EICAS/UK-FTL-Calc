@@ -47,6 +47,9 @@ struct ManualCalcView: View {
                         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     }
                     
+                    // Progress Indicator
+                    SectionProgressIndicator(viewModel: viewModel)
+                    
                     // Home Bases Section
                     HomeBaseSection(viewModel: viewModel)
                     
@@ -138,7 +141,42 @@ struct ManualCalcView: View {
                     viewModel.isLongFlight = false
                     viewModel.additionalCrewMembers = 1
                 }
+                
+                // Check for required fields after initialization
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    viewModel.checkNextRequiredField()
+                }
             }
+            .onChange(of: viewModel.isStandbyEnabled) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.selectedStandbyType) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.selectedStandbyLocation) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.standbyStartDateTime) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.selectedReportingLocation) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.reportingDateTime) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.selectedAcclimatisation) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.numberOfSectors) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .onChange(of: viewModel.estimatedBlockTime) { oldValue, newValue in
+                viewModel.checkNextRequiredField()
+            }
+            .overlay(
+                FieldGuidanceOverlay(viewModel: viewModel)
+            )
         }
     }
     

@@ -13,6 +13,20 @@ class ManualCalcViewModel: ObservableObject {
     @AppStorage("homeBase") var homeBase: String = "LHR"
     @AppStorage("secondHomeBase") var secondHomeBase: String = ""
     
+    // MARK: - Field Completion Tracking
+    @Published var showingFieldGuidance = false
+    @Published var currentGuidanceMessage = ""
+    @Published var currentGuidanceType: GuidanceType = .info
+    @Published var nextRequiredField: RequiredField = .none
+    
+    // MARK: - Section Completion Status
+    @Published var homeBaseSectionComplete = false
+    @Published var standbySectionComplete = false
+    @Published var reportingSectionComplete = false
+    @Published var sectorsSectionComplete = false
+    @Published var fdpResultsSectionComplete = false
+    @Published var latestTimesSectionComplete = false
+    
     // MARK: - Standby/Reserve State
     @Published var showingStandbyOptions = false
     @Published var selectedStandbyType: String = "Standby"
@@ -355,7 +369,7 @@ class ManualCalcViewModel: ObservableObject {
         var utcCalendar = Calendar.current
         utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
         let reportingDate = utcCalendar.startOfDay(for: reportingDateTime)
-        let offBlocksDate = utcCalendar.startOfDay(for: date)
+        let offBlocksDate = utcCalendar.startOfDay(for: reportingDate)
         
         if utcCalendar.isDate(offBlocksDate, inSameDayAs: reportingDate) {
             formatter.dateFormat = "HH:mm"
@@ -390,5 +404,127 @@ class ManualCalcViewModel: ObservableObject {
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date) + "z"
     }
+    
+    // MARK: - Field Guidance System
+    func checkNextRequiredField() {
+        // Check Home Base Section
+        if !homeBaseSectionComplete {
+            if homeBase.isEmpty {
+                showGuidance(message: "Set your primary home base to continue", type: .required, field: .homeBase)
+                return
+            }
+            homeBaseSectionComplete = true
+        }
+        
+        // Check Standby Section
+        if isStandbyEnabled && !standbySectionComplete {
+            if selectedStandbyType.isEmpty {
+                showGuidance(message: "Select standby type (Standby, Airport Duty, or Reserve)", type: .required, field: .standbyType)
+                return
+            }
+            if selectedStandbyLocation.isEmpty {
+                showGuidance(message: "Set standby location", type: .required, field: .standbyLocation)
+                return
+            }
+            if standbyStartDateTime == Date() {
+                showGuidance(message: "Set standby start date and time", type: .required, field: .standbyDateTime)
+                return
+            }
+            standbySectionComplete = true
+        }
+        
+        // Check Reporting Section
+        if !reportingSectionComplete {
+            if selectedReportingLocation.isEmpty {
+                showGuidance(message: "Set reporting location", type: .required, field: .reportingLocation)
+                return
+            }
+            if reportingDateTime == Date() {
+                showGuidance(message: "Set reporting date and time", type: .required, field: .reportingDateTime)
+                return
+            }
+            if selectedAcclimatisation.isEmpty {
+                showGuidance(message: "Set acclimatisation status", type: .required, field: .acclimatisation)
+                return
+            }
+            reportingSectionComplete = true
+        }
+        
+        // Check Sectors Section
+        if !sectorsSectionComplete {
+            if numberOfSectors < 1 {
+                showGuidance(message: "Set number of sectors", type: .required, field: .sectors)
+                return
+            }
+            if hasInFlightRest && restFacilityType == .none {
+                showGuidance(message: "Configure in-flight rest facility", type: .required, field: .inFlightRest)
+                return
+            }
+            if estimatedBlockTime <= 0 {
+                showGuidance(message: "Set estimated block time", type: .required, field: .blockTime)
+                return
+            }
+            sectorsSectionComplete = true
+        }
+        
+        // All required fields completed
+        showGuidance(message: "All required fields completed! FDP calculations are ready.", type: .success, field: .none)
+        fdpResultsSectionComplete = true
+        latestTimesSectionComplete = true
+    }
+    
+    func showGuidance(message: String, type: GuidanceType, field: RequiredField) {
+        currentGuidanceMessage = message
+        currentGuidanceType = type
+        nextRequiredField = field
+        showingFieldGuidance = true
+        
+        // Auto-hide guidance after 4 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            if self.showingFieldGuidance {
+                self.showingFieldGuidance = false
+            }
+        }
+    }
+    
+    func hideGuidance() {
+        showingFieldGuidance = false
+    }
+    
+    func getSectionCompletionPercentage() -> Double {
+        var completedSections = 0
+        let totalSections = 6
+        
+        if homeBaseSectionComplete { completedSections += 1 }
+        if standbySectionComplete || !isStandbyEnabled { completedSections += 1 }
+        if reportingSectionComplete { completedSections += 1 }
+        if sectorsSectionComplete { completedSections += 1 }
+        if fdpResultsSectionComplete { completedSections += 1 }
+        if latestTimesSectionComplete { completedSections += 1 }
+        
+        return Double(completedSections) / Double(totalSections)
+    }
+}
+
+// MARK: - Guidance System Enums
+enum GuidanceType {
+    case info
+    case required
+    case warning
+    case success
+}
+
+enum RequiredField {
+    case none
+    case homeBase
+    case standbyType
+    case standbyLocation
+    case standbyDateTime
+    case reportingLocation
+    case reportingDateTime
+    case acclimatisation
+    case sectors
+    case inFlightRest
+    case blockTime
 }
 
