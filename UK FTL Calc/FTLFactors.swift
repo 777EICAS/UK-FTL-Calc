@@ -10,116 +10,278 @@ import SwiftUI
 // MARK: - Active Factor Card
 struct ActiveFactorCard: View {
     let factor: ActiveFactor
+    let hasAugmentedCrew: Bool
     @State private var showingDetailPopup = false
     
     var body: some View {
-        Button(action: {
-            showingDetailPopup = true
-        }) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: factor.impactType.icon)
-                        .foregroundColor(factor.impactType.color)
+        // Special handling for Report Time card when augmented crew is active
+        if factor.title == "Report Time" && hasAugmentedCrew {
+            DisclosureGroup(
+                content: {
+                    // Expanded content - show the full card
+                    Button(action: {
+                        showingDetailPopup = true
+                    }) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: factor.impactType.icon)
+                                    .foregroundColor(factor.impactType.color)
+                                    .font(.caption)
+                                
+                                Text(factor.title)
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                // Impact indicator
+                                Text(factor.impactType.rawValue.uppercased())
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(factor.impactType.color.opacity(0.2))
+                                    .foregroundColor(factor.impactType.color)
+                                    .cornerRadius(4)
+                                
+                                // Add chevron to indicate it's tappable
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Text(factor.description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                            
+                            // Show factor value preview
+                            Text(factor.factorValue)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundColor(factor.impactType.color)
+                                .lineLimit(1)
+                            
+                            if !factor.details.isEmpty {
+                                Text(factor.details)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .italic()
+                                    .lineLimit(1)
+                            }
+                            
+                            Text(factor.impact)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(factor.impactType.color)
+                            
+                            // Show priority and dependencies preview
+                            HStack(spacing: 12) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "list.number")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                    Text("\(factor.priority)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                if !factor.dependencies.isEmpty {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "link")
+                                            .font(.caption2)
+                                            .foregroundColor(.blue)
+                                        Text("\(factor.dependencies.count)")
+                                            .font(.caption2)
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                // Tap hint
+                                Text("Tap for details")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                    .italic()
+                            }
+                            
+                            // Note about not being used for augmented crew
+                            HStack {
+                                Image(systemName: "info.circle")
+                                    .foregroundColor(.blue)
+                                    .font(.caption2)
+                                Text("Note: Report time is not used for augmented crew FTL calculations")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                    .italic()
+                            }
+                        }
+                        .padding(12)
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(factor.impactType.color.opacity(0.3), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .scaleEffect(showingDetailPopup ? 0.98 : 1.0)
+                    .animation(.easeInOut(duration: 0.1), value: showingDetailPopup)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+                            .opacity(showingDetailPopup ? 1 : 0)
+                    )
+                },
+                label: {
+                    // Collapsed label - show minimal info
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                        
+                        Text("Report time data (not used for augmented crew)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        // Impact indicator
+                        Text(factor.impactType.rawValue.uppercased())
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(factor.impactType.color.opacity(0.2))
+                            .foregroundColor(factor.impactType.color)
+                            .cornerRadius(4)
+                    }
+                    .padding(12)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(factor.impactType.color.opacity(0.3), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                }
+            )
+            .sheet(isPresented: $showingDetailPopup) {
+                FactorDetailPopupView(factor: factor)
+            }
+        } else {
+            // Standard card display for all other factors
+            Button(action: {
+                showingDetailPopup = true
+            }) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: factor.impactType.icon)
+                            .foregroundColor(factor.impactType.color)
+                            .font(.caption)
+                        
+                        Text(factor.title)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        // Impact indicator
+                        Text(factor.impactType.rawValue.uppercased())
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(factor.impactType.color.opacity(0.2))
+                            .foregroundColor(factor.impactType.color)
+                            .cornerRadius(4)
+                        
+                        // Add chevron to indicate it's tappable
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Text(factor.description)
                         .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
                     
-                    Text(factor.title)
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                    
-                    Spacer()
-                    
-                    // Impact indicator
-                    Text(factor.impactType.rawValue.uppercased())
+                    // Show factor value preview
+                    Text(factor.factorValue)
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(factor.impactType.color.opacity(0.2))
                         .foregroundColor(factor.impactType.color)
-                        .cornerRadius(4)
-                    
-                    // Add chevron to indicate it's tappable
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                
-                Text(factor.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
-                
-                // Show factor value preview
-                Text(factor.factorValue)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(factor.impactType.color)
-                    .lineLimit(1)
-                
-                if !factor.details.isEmpty {
-                    Text(factor.details)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .italic()
                         .lineLimit(1)
-                }
-                
-                Text(factor.impact)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(factor.impactType.color)
-                
-                // Show priority and dependencies preview
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "list.number")
+                    
+                    if !factor.details.isEmpty {
+                        Text(factor.details)
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        Text("\(factor.priority)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .italic()
+                            .lineLimit(1)
                     }
                     
-                    if !factor.dependencies.isEmpty {
+                    Text(factor.impact)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(factor.impactType.color)
+                    
+                    // Show priority and dependencies preview
+                    HStack(spacing: 12) {
                         HStack(spacing: 4) {
-                            Image(systemName: "link")
+                            Image(systemName: "list.number")
                                 .font(.caption2)
-                                .foregroundColor(.blue)
-                            Text("\(factor.dependencies.count)")
+                                .foregroundColor(.secondary)
+                            Text("\(factor.priority)")
                                 .font(.caption2)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.secondary)
                         }
+                        
+                        if !factor.dependencies.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "link")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                                Text("\(factor.dependencies.count)")
+                                    .font(.caption2)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Tap hint
+                        Text("Tap for details")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                            .italic()
                     }
-                    
-                    Spacer()
-                    
-                    // Tap hint
-                    Text("Tap for details")
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                        .italic()
                 }
+                .padding(12)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(factor.impactType.color.opacity(0.3), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
             }
-            .padding(12)
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
+            .buttonStyle(PlainButtonStyle())
+            .scaleEffect(showingDetailPopup ? 0.98 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: showingDetailPopup)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(factor.impactType.color.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+                    .opacity(showingDetailPopup ? 1 : 0)
             )
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .scaleEffect(showingDetailPopup ? 0.98 : 1.0)
-        .animation(.easeInOut(duration: 0.1), value: showingDetailPopup)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.1), lineWidth: 1)
-                .opacity(showingDetailPopup ? 1 : 0)
-        )
-        .sheet(isPresented: $showingDetailPopup) {
-            FactorDetailPopupView(factor: factor)
+            .sheet(isPresented: $showingDetailPopup) {
+                FactorDetailPopupView(factor: factor)
+            }
         }
     }
 }

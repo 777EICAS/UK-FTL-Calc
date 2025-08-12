@@ -671,7 +671,7 @@ struct UKCAALimits {
         
         // Always acclimatised when starting from home base (first sector)
         if isFirstSector && departure.uppercased() == homeBase.uppercased() {
-            return (true, true, "First sector from home base - always acclimatised")
+            return (true, true, "Result B: First sector from home base - always acclimatised")
         }
         
         // For subsequent sectors, apply UK CAA ±2 hour band rule first, then Table 1 rules if outside the band
@@ -817,12 +817,12 @@ struct UKCAALimits {
         // Default case for any time zone differences > 12 hours (should not occur in practice)
         if timeZoneDifference > 12 {
             print("DEBUG: Table 1 Reference - Time zone difference: >12h - invalid case")
-            return (false, false, "Time zone difference > 12h - invalid case")
+            return (false, false, "Result X: Time zone difference > 12h - invalid case")
         }
         
         // Default case
         print("DEBUG: Table 1 Reference - Unable to determine acclimatisation status")
-        return (false, false, "Unable to determine acclimatisation status")
+        return (false, false, "Result X: Unable to determine acclimatisation status")
     }
     
     // Get detailed active factors with impact explanations

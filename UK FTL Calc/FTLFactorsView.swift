@@ -31,30 +31,81 @@ struct FTLFactorsView: View {
                             .font(.headline)
                             .fontWeight(.semibold)
                         
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Report Time")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text(viewModel.ftlFactors.startTime)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                            }
-                            
-                            if viewModel.ftlFactors.isEarlyStart {
+                        if viewModel.ftlFactors.hasAugmentedCrew {
+                            DisclosureGroup(
+                                content: {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Text("Report Time")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                            Spacer()
+                                            Text(viewModel.ftlFactors.startTime)
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                        }
+                                        
+                                        if viewModel.ftlFactors.isEarlyStart {
+                                            HStack {
+                                                Image(systemName: "exclamationmark.triangle")
+                                                    .foregroundColor(.orange)
+                                                Text("Early start detected - reduced limits apply")
+                                                    .font(.caption)
+                                                    .foregroundColor(.orange)
+                                            }
+                                        }
+                                        
+                                        HStack {
+                                            Image(systemName: "info.circle")
+                                                .foregroundColor(.blue)
+                                                .font(.caption)
+                                            Text("Note: Report time is not used for augmented crew FTL calculations")
+                                                .font(.caption)
+                                                .foregroundColor(.blue)
+                                                .italic()
+                                        }
+                                    }
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(12)
+                                },
+                                label: {
+                                    HStack {
+                                        Image(systemName: "info.circle")
+                                            .foregroundColor(.blue)
+                                        Text("Report time data (not used for augmented crew)")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                        Spacer()
+                                    }
+                                }
+                            )
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
                                 HStack {
-                                    Image(systemName: "exclamationmark.triangle")
-                                        .foregroundColor(.orange)
-                                    Text("Early start detected - reduced limits apply")
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
+                                    Text("Report Time")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(viewModel.ftlFactors.startTime)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                }
+                                
+                                if viewModel.ftlFactors.isEarlyStart {
+                                    HStack {
+                                        Image(systemName: "exclamationmark.triangle")
+                                            .foregroundColor(.orange)
+                                        Text("Early start detected - reduced limits apply")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                    }
                                 }
                             }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
                         }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
                     }
                     
 

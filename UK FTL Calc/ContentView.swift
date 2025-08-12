@@ -1186,7 +1186,7 @@ struct ContentView: View {
                             
                             LazyVStack(spacing: 8) {
                                 ForEach(Array(viewModel.activeFactors.enumerated()), id: \.offset) { index, factor in
-                                    ActiveFactorCard(factor: factor)
+                                    ActiveFactorCard(factor: factor, hasAugmentedCrew: viewModel.ftlFactors.hasAugmentedCrew)
                                 }
                             }
                         }
