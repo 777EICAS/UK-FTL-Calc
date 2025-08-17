@@ -636,7 +636,7 @@ class RegulatoryTableLookup {
             timeRange = "1600-1629"
         } else if timeInt >= 1630 && timeInt <= 1659 { 
             timeRange = "1630-1659"
-        } else if timeInt >= 1700 && timeInt <= 459 { 
+        } else if timeInt >= 1700 || timeInt <= 459 { 
             timeRange = "1700-0459"
         } else {
             // Default fallback for any unmapped times

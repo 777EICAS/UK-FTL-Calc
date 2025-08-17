@@ -9,16 +9,26 @@ import SwiftUI
 
 @MainActor
 class ManualCalcViewModel: ObservableObject {
-    // MARK: - Debug Configuration
-    private let enableDebugOutput = false // Set to false to disable debug output
-    
     // MARK: - App Storage
     @AppStorage("homeBase") var homeBase: String = "LHR" {
-        didSet { clearCache() }
+        didSet { 
+            clearCache()
+            homeBaseChanged = true
+            currentHomeBase = homeBase
+        }
     }
     @AppStorage("secondHomeBase") var secondHomeBase: String = "" {
-        didSet { clearCache() }
+        didSet { 
+            clearCache()
+            homeBaseChanged = true
+            currentSecondHomeBase = secondHomeBase
+        }
     }
+    
+    // MARK: - Home Base Change Tracking
+    @Published var homeBaseChanged = false
+    @Published var currentHomeBase: String = "LHR"
+    @Published var currentSecondHomeBase: String = ""
     
     // MARK: - Standby/Reserve State
     @Published var showingStandbyOptions = false
@@ -224,30 +234,13 @@ class ManualCalcViewModel: ObservableObject {
     
     // Method to apply split duty settings and force calculation update
     func applySplitDutySettings() {
-        print("DEBUG: applySplitDutySettings - Starting")
-        print("DEBUG: applySplitDutySettings - Current values:")
-        print("DEBUG: applySplitDutySettings - hasSplitDuty: \(hasSplitDuty)")
-        print("DEBUG: applySplitDutySettings - splitDutyAccommodationType: '\(splitDutyAccommodationType)'")
-        print("DEBUG: applySplitDutySettings - splitDutyBreakDuration: \(splitDutyBreakDuration)")
-        print("DEBUG: applySplitDutySettings - splitDutyBreakBegin: \(splitDutyBreakBegin)")
-        print("DEBUG: applySplitDutySettings - selectedBreakDurationHour: \(selectedBreakDurationHour)")
-        print("DEBUG: applySplitDutySettings - selectedBreakDurationMinute: \(selectedBreakDurationMinute)")
-        print("DEBUG: applySplitDutySettings - selectedBreakBeginHour: \(selectedBreakBeginHour)")
-        print("DEBUG: applySplitDutySettings - selectedBreakBeginMinute: \(selectedBreakBeginMinute)")
-        
         // Update the actual split duty properties from the selected values
         updateBreakDurationFromCustomInput()
         updateBreakBeginTimeFromCustomInput()
         
-        print("DEBUG: applySplitDutySettings - After updating properties:")
-        print("DEBUG: applySplitDutySettings - splitDutyBreakDuration: \(splitDutyBreakDuration)")
-        print("DEBUG: applySplitDutySettings - splitDutyBreakBegin: \(splitDutyBreakBegin)")
-        
         clearCache()
         // Force UI update by triggering objectWillChange
         objectWillChange.send()
-        
-        print("DEBUG: applySplitDutySettings - Cache cleared and UI update triggered")
     }
     
     // Effective standby start time - for airport duty, this is the same as airport duty start time
@@ -290,12 +283,82 @@ class ManualCalcViewModel: ObservableObject {
     
     // MARK: - Initialization
     init() {
+        // Read directly from UserDefaults for initialization
+        let storedHomeBase = UserDefaults.standard.string(forKey: "homeBase") ?? "LHR"
+        let storedSecondHomeBase = UserDefaults.standard.string(forKey: "secondHomeBase") ?? ""
+        
         // Initialize in-flight rest configuration
         if hasInFlightRest && restFacilityType == .none {
             hasInFlightRest = false
             inFlightRestSectors = 1
             isLongFlight = false
             additionalCrewMembers = 1
+        }
+        
+        // Initialize editing values with current home base values
+        editingHomeBase = storedHomeBase
+        editingSecondHomeBase = storedSecondHomeBase
+        
+        // Initialize @Published properties
+        currentHomeBase = storedHomeBase
+        currentSecondHomeBase = storedSecondHomeBase
+        
+        // Ensure @Published properties are in sync with UserDefaults
+        refreshPublishedHomeBases()
+    }
+    
+    // MARK: - Home Base Management
+    func initializeEditingHomeBases() {
+        // Read directly from UserDefaults
+        let storedHomeBase = UserDefaults.standard.string(forKey: "homeBase") ?? "LHR"
+        let storedSecondHomeBase = UserDefaults.standard.string(forKey: "secondHomeBase") ?? ""
+        
+        editingHomeBase = storedHomeBase
+        editingSecondHomeBase = storedSecondHomeBase
+    }
+    
+    func updateHomeBases() {
+        // Use the manual update method for more reliable updates
+        manuallyUpdateHomeBases()
+        
+        // Reset the change flag
+        homeBaseChanged = false
+    }
+    
+    func refreshPublishedHomeBases() {
+        // Read directly from UserDefaults
+        let storedHomeBase = UserDefaults.standard.string(forKey: "homeBase") ?? "LHR"
+        let storedSecondHomeBase = UserDefaults.standard.string(forKey: "secondHomeBase") ?? ""
+        
+        // Update the @Published properties
+        currentHomeBase = storedHomeBase
+        currentSecondHomeBase = storedSecondHomeBase
+    }
+    
+    func forceHomeBaseRefresh() {
+        refreshPublishedHomeBases()
+        
+        // Force UI update
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
+    }
+    
+    func manuallyUpdateHomeBases() {
+        // Manually update UserDefaults
+        UserDefaults.standard.set(editingHomeBase, forKey: "homeBase")
+        UserDefaults.standard.set(editingSecondHomeBase, forKey: "secondHomeBase")
+        
+        // Update the @Published properties
+        currentHomeBase = editingHomeBase
+        currentSecondHomeBase = editingSecondHomeBase
+        
+        // Clear cache
+        clearCache()
+        
+        // Force UI update
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
         }
     }
     
@@ -327,11 +390,6 @@ class ManualCalcViewModel: ObservableObject {
     func calculateAcclimatisation() -> String {
         let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
         
-        print("DEBUG: calculateAcclimatisation - Current departure: \(currentDeparture)")
-        print("DEBUG: calculateAcclimatisation - Home base: \(homeBase)")
-        print("DEBUG: calculateAcclimatisation - Timezone difference: \(timezoneDifference)h")
-        print("DEBUG: calculateAcclimatisation - Elapsed time: \(elapsedTime)h")
-        
         let acclimatisationStatus = UKCAALimits.determineAcclimatisationStatus(
             timeZoneDifference: timezoneDifference,
             elapsedTimeHours: Double(elapsedTime),
@@ -340,16 +398,11 @@ class ManualCalcViewModel: ObservableObject {
             departure: currentDeparture
         )
         
-        print("DEBUG: calculateAcclimatisation - UKCAALimits result: \(acclimatisationStatus.reason)")
-        
         if acclimatisationStatus.reason.contains("Result B") {
-            print("DEBUG: calculateAcclimatisation - Returning Result B")
             return "B"
         } else if acclimatisationStatus.reason.contains("Result D") {
-            print("DEBUG: calculateAcclimatisation - Returning Result D")
             return "D"
         } else {
-            print("DEBUG: calculateAcclimatisation - Returning Result X")
             return "X"
         }
     }
@@ -369,29 +422,10 @@ class ManualCalcViewModel: ObservableObject {
     
     // MARK: - FDP Calculation Functions
     func calculateMaxFDP() -> Double {
-        print("=== DEBUG: calculateMaxFDP START ===")
-        print("DEBUG: calculateMaxFDP - Current state:")
-        print("  - Home base: \(homeBase)")
-        print("  - Selected reporting location: \(selectedReportingLocation)")
-        print("  - Number of sectors: \(numberOfSectors)")
-        print("  - Reporting date time: \(reportingDateTime)")
-        print("  - Standby enabled: \(isStandbyEnabled)")
-        print("  - Standby type: \(selectedStandbyType)")
-        print("  - Timezone difference: \(timezoneDifference)")
-        print("  - Elapsed time: \(elapsedTime)")
-        print("  - Has in-flight rest: \(hasInFlightRest)")
-        print("  - Has split duty: \(hasSplitDuty)")
-        print("  - Has extended FDP: \(hasExtendedFDP)")
-        print("=====================================")
-        
         let acclimatisationResult = calculateAcclimatisation()
-        
-        print("DEBUG: calculateMaxFDP - Acclimatisation result: \(acclimatisationResult)")
         
         // Check if extended FDP is enabled first
         if hasExtendedFDP {
-            print("DEBUG: calculateMaxFDP - Extended FDP is enabled, using Table 4")
-            
             let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
             
             // Use the appropriate baseline time based on standby type
@@ -413,24 +447,15 @@ class ManualCalcViewModel: ObservableObject {
                 referenceDateTime = reportingDateTime
             }
             
-            print("DEBUG: calculateMaxFDP - Extended FDP reference date time: \(referenceDateTime)")
-            
             let timeString = utcTimeFormatter.string(from: referenceDateTime)
-            print("DEBUG: calculateMaxFDP - Extended FDP UTC time string: \(timeString)")
-            
             let localTime = TimeUtilities.getLocalTime(for: timeString, airportCode: currentDeparture)
-            print("DEBUG: calculateMaxFDP - Extended FDP local time at \(currentDeparture): \(localTime)")
-            
             let sectorsForLookup = numberOfSectors == 1 ? 2 : numberOfSectors
-            print("DEBUG: calculateMaxFDP - Extended FDP sectors for lookup: \(sectorsForLookup) (original: \(numberOfSectors))")
             
             // Use extended FDP table (Table 4)
             if let extendedFDP = RegulatoryTableLookup.lookupExtendedFDP(reportTime: localTime, sectors: sectorsForLookup) {
-                print("DEBUG: calculateMaxFDP - Extended FDP from Table 4: \(extendedFDP)h")
                 // Extended FDP: no split duty or in-flight rest extensions allowed
                 return extendedFDP
             } else {
-                print("DEBUG: calculateMaxFDP - Extended FDP not allowed for this time/sectors combination, falling back to standard calculation")
                 // Fall back to standard calculation if extended FDP not allowed
             }
         }
@@ -440,10 +465,6 @@ class ManualCalcViewModel: ObservableObject {
         case "B", "D":
             let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
             
-            print("DEBUG: calculateMaxFDP - Using acclimatised crew calculation (Result: \(acclimatisationResult))")
-            print("DEBUG: calculateMaxFDP - Current departure: \(currentDeparture)")
-            print("DEBUG: calculateMaxFDP - Home base: \(homeBase)")
-            
             // Use the appropriate baseline time based on standby type
             let referenceDateTime: Date
             if isStandbyEnabled {
@@ -463,42 +484,25 @@ class ManualCalcViewModel: ObservableObject {
                 referenceDateTime = reportingDateTime
             }
             
-            print("DEBUG: calculateMaxFDP - Reference date time: \(referenceDateTime)")
-            
             let timeString = utcTimeFormatter.string(from: referenceDateTime)
-            print("DEBUG: calculateMaxFDP - UTC time string: \(timeString)")
-            
             let localTime = TimeUtilities.getLocalTime(for: timeString, airportCode: currentDeparture)
-            print("DEBUG: calculateMaxFDP - Local time at \(currentDeparture): \(localTime)")
-            
             let sectorsForLookup = numberOfSectors == 1 ? 2 : numberOfSectors
-            print("DEBUG: calculateMaxFDP - Sectors for lookup: \(sectorsForLookup) (original: \(numberOfSectors))")
             
             baseFDP = RegulatoryTableLookup.lookupFDPAcclimatised(reportTime: localTime, sectors: sectorsForLookup)
-            print("DEBUG: calculateMaxFDP - Base FDP from Table 2: \(baseFDP)h")
             
         case "X":
-            print("DEBUG: calculateMaxFDP - Using unknown acclimatisation calculation (Result: \(acclimatisationResult))")
-            print("DEBUG: calculateMaxFDP - Sectors: \(numberOfSectors)")
-            
             let result = RegulatoryTableLookup.lookupFDPUnknownAcclimatised(sectors: numberOfSectors)
             baseFDP = result
-            print("DEBUG: calculateMaxFDP - Base FDP from Table 3: \(baseFDP)h")
             
         default:
-            print("DEBUG: calculateMaxFDP - Unknown acclimatisation result: \(acclimatisationResult), using default")
             baseFDP = 9.0
         }
-        
-        print("DEBUG: calculateMaxFDP - Final base FDP: \(baseFDP)h")
         
         // Apply split duty extension if enabled
         var finalFDP = baseFDP
         if hasSplitDuty {
             let splitDutyExtension = calculateSplitDutyExtension()
             finalFDP = baseFDP + splitDutyExtension
-            print("DEBUG: calculateMaxFDP - Split duty extension: +\(splitDutyExtension)h")
-            print("DEBUG: calculateMaxFDP - Final FDP with split duty: \(finalFDP)h")
         }
         
         // Return final FDP (base + split duty extension if applicable)
@@ -553,7 +557,6 @@ class ManualCalcViewModel: ObservableObject {
     func calculateInFlightRestExtension() -> Double {
         // Extended FDP cannot be combined with in-flight rest extensions
         if hasExtendedFDP {
-            print("DEBUG: calculateInFlightRestExtension - Extended FDP is enabled, in-flight rest extensions not allowed")
             return 0.0
         }
         
@@ -579,27 +582,18 @@ class ManualCalcViewModel: ObservableObject {
     func calculateSplitDutyExtension() -> Double {
         // Extended FDP cannot be combined with split duty extensions
         if hasExtendedFDP {
-            print("DEBUG: calculateSplitDutyExtension - Extended FDP is enabled, split duty extensions not allowed")
             return 0.0
         }
         
         guard hasSplitDuty else { 
-            print("DEBUG: calculateSplitDutyExtension - hasSplitDuty is false, returning 0.0")
             return 0.0 
         }
         
-        print("DEBUG: calculateSplitDutyExtension - hasSplitDuty is true")
-        print("DEBUG: calculateSplitDutyExtension - splitDutyBreakDuration: \(splitDutyBreakDuration)")
-        print("DEBUG: calculateSplitDutyExtension - splitDutyAccommodationType: '\(splitDutyAccommodationType)'")
-        print("DEBUG: calculateSplitDutyExtension - splitDutyBreakBegin: \(splitDutyBreakBegin)")
-        
         // Base extension: 50% of break duration
         let baseExtension = splitDutyBreakDuration * 0.5
-        print("DEBUG: calculateSplitDutyExtension - baseExtension: \(baseExtension)")
         
         if splitDutyAccommodationType == "Suitable Accomm" {
             // Suitable accommodation: full 50% extension
-            print("DEBUG: calculateSplitDutyExtension - Using Suitable Accomm, returning: \(baseExtension)")
             return baseExtension
         } else {
             // Accommodation: apply restrictions
@@ -615,7 +609,6 @@ class ManualCalcViewModel: ObservableObject {
             effectiveBreakTime = max(0.0, effectiveBreakTime - woclReduction)
             
             let finalExtension = effectiveBreakTime * 0.5
-            print("DEBUG: calculateSplitDutyExtension - Using Accommodation, effectiveBreakTime: \(effectiveBreakTime), woclReduction: \(woclReduction), finalExtension: \(finalExtension)")
             
             // Return 50% of effective break time
             return finalExtension
@@ -776,8 +769,6 @@ class ManualCalcViewModel: ObservableObject {
         let timeWithFDP = baselineTime.addingTimeInterval(totalFDP * 3600)
         let latestOffBlocks = timeWithFDP.addingTimeInterval(-estimatedBlockTime * 3600)
         
-
-        
         return latestOffBlocks
     }
     
@@ -824,11 +815,6 @@ class ManualCalcViewModel: ObservableObject {
         
         // Commanders discretion can only be used to reach the 2-hour total extension limit
         let availableCommandersDiscretion = max(0.0, 2.0 - extendedFDPMargin)
-        
-        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Baseline FDP: \(baselineFDP)h")
-        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Extended FDP: \(extendedFDP)h")
-        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Extended FDP margin: \(extendedFDPMargin)h")
-        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Available commanders discretion: \(availableCommandersDiscretion)h")
         
         return availableCommandersDiscretion
     }

@@ -9,175 +9,151 @@ import SwiftUI
 
 struct HomeBaseEditorSheet: View {
     @ObservedObject var viewModel: ManualCalcViewModel
-    @Binding var isPresented: Bool
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-                Text("Edit Home Bases")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .padding(.top)
-                
-                VStack(spacing: 24) {
-                    // Primary Home Base Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "house.fill")
-                                .foregroundColor(.blue)
-                                .font(.title3)
-                            Text("Primary Home Base")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Spacer()
-                        }
-                        
-                        Button(action: { 
-                            viewModel.editingHomeBaseType = "primary"
-                            viewModel.showingHomeBaseLocationPicker = true 
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(viewModel.editingHomeBase.isEmpty ? "Select Primary Home Base" : viewModel.editingHomeBase)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(viewModel.editingHomeBase.isEmpty ? .secondary : .primary)
-                                    
-                                    if !viewModel.editingHomeBase.isEmpty, let airport = AirportsAndAirlines.airports.first(where: { $0.0 == viewModel.editingHomeBase }) {
-                                        Text(airport.1)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.blue)
-                                    .font(.caption)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
-                        }
-                    }
+                // Header
+                VStack(spacing: 8) {
+                    Image(systemName: "house.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.blue)
                     
-                    // Secondary Home Base Selection
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "house.fill")
-                                .foregroundColor(.green)
-                                .font(.title3)
-                            Text("Secondary Home Base (Optional)")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Spacer()
-                        }
-                        
-                        Button(action: { 
-                            viewModel.editingHomeBaseType = "secondary"
-                            viewModel.showingHomeBaseLocationPicker = true 
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(viewModel.editingSecondHomeBase.isEmpty ? "Select Secondary Home Base" : viewModel.editingSecondHomeBase)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(viewModel.editingSecondHomeBase.isEmpty ? .secondary : .primary)
-                                    
-                                    if !viewModel.editingSecondHomeBase.isEmpty, let airport = AirportsAndAirlines.airports.first(where: { $0.0 == viewModel.editingSecondHomeBase }) {
-                                        Text(airport.1)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.green)
-                                    .font(.caption)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
-                        }
-                        
-                        // Clear secondary home base button
-                        if !viewModel.editingSecondHomeBase.isEmpty {
-                            Button(action: {
-                                viewModel.editingSecondHomeBase = ""
-                            }) {
-                                HStack {
-                                    Image(systemName: "xmark.circle")
-                                        .foregroundColor(.red)
-                                        .font(.caption)
-                                    Text("Clear Secondary Home Base")
-                                        .font(.caption)
-                                        .foregroundColor(.red)
-                                        .fontWeight(.medium)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.red.opacity(0.1))
-                                .cornerRadius(8)
-                            }
-                        }
-                    }
+                    Text("Edit Home Bases")
+                        .font(.title2)
+                        .fontWeight(.semibold)
                     
-                    // Help text
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Note:")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                        
-                        Text("• Your primary home base is used for acclimatisation calculations")
-                        Text("• Secondary home base is optional and can be used for multi-base operations")
-                        Text("• Both bases are assumed to be in UTC +1 timezone")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
+                    Text("Set your primary and secondary home bases")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                .padding(.horizontal)
+                .padding(.top)
+                
+                // Primary Home Base Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "1.circle.fill")
+                            .foregroundColor(.blue)
+                        Text("Primary Home Base")
+                            .font(.headline)
+                        Spacer()
+                    }
+                    
+                    Button(action: {
+                        viewModel.editingHomeBaseType = "primary"
+                        viewModel.showingHomeBaseLocationPicker = true
+                    }) {
+                        HStack {
+                            Text(viewModel.editingHomeBase.isEmpty ? "Select Primary Home Base" : viewModel.editingHomeBase)
+                                .foregroundColor(viewModel.editingHomeBase.isEmpty ? .secondary : .primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
+                    }
+                }
+                
+                // Secondary Home Base Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "2.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Secondary Home Base (Optional)")
+                            .font(.headline)
+                        Spacer()
+                    }
+                    
+                    Button(action: {
+                        viewModel.editingHomeBaseType = "secondary"
+                        viewModel.showingHomeBaseLocationPicker = true
+                    }) {
+                        HStack {
+                            Text(viewModel.editingSecondHomeBase.isEmpty ? "Select Secondary Home Base" : viewModel.editingSecondHomeBase)
+                                .foregroundColor(viewModel.editingSecondHomeBase.isEmpty ? .secondary : .primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
+                    }
+                    
+                    if !viewModel.editingSecondHomeBase.isEmpty {
+                        Button(action: {
+                            viewModel.editingSecondHomeBase = ""
+                        }) {
+                            HStack {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                                Text("Clear Secondary Home Base")
+                                    .foregroundColor(.red)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                }
                 
                 Spacer()
                 
-                // Action buttons
-                HStack(spacing: 20) {
-                    Button("Cancel") {
-                        isPresented = false
+                // Action Buttons
+                VStack(spacing: 12) {
+                    Button(action: {
+                        viewModel.updateHomeBases()
+                        dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Save Changes")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
                     }
-                    .foregroundColor(.blue)
-                    .font(.title3)
                     
-                    Button("Save Changes") {
-                        // Update the home bases
-                        viewModel.homeBase = viewModel.editingHomeBase
-                        viewModel.secondHomeBase = viewModel.editingSecondHomeBase
-                        isPresented = false
+                    Button(action: {
+                        viewModel.initializeEditingHomeBases()
+                        dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "xmark.circle.fill")
+                            Text("Cancel")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray4))
+                        .foregroundColor(.primary)
+                        .cornerRadius(10)
                     }
-                    .foregroundColor(.blue)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .disabled(viewModel.editingHomeBase.isEmpty)
                 }
-                .padding()
             }
-            .navigationTitle("Edit Home Bases")
+            .padding()
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(trailing: Button("Done") {
-                // Update the home bases
-                viewModel.homeBase = viewModel.editingHomeBase
-                viewModel.secondHomeBase = viewModel.editingSecondHomeBase
-                isPresented = false
-            })
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        viewModel.updateHomeBases()
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.showingHomeBaseLocationPicker) {
+            HomeBaseLocationPickerSheet(viewModel: viewModel)
+        }
+        .onAppear {
+            viewModel.initializeEditingHomeBases()
         }
     }
 }

@@ -170,6 +170,9 @@ struct ManualCalcView: View {
                 nightStandbyContactPopupSheet
             }
             .onAppear {
+                // Refresh published home bases to ensure they're in sync
+                viewModel.refreshPublishedHomeBases()
+                
                 // Initialize selected hour and minute from current reportingDateTime (in UTC)
                 var utcCalendar = Calendar.current
                 utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
@@ -271,11 +274,11 @@ struct ManualCalcView: View {
     }
     
     private var homeBaseEditorSheet: some View {
-        HomeBaseEditorSheet(viewModel: viewModel, isPresented: $viewModel.showingHomeBaseEditor)
+        HomeBaseEditorSheet(viewModel: viewModel)
     }
     
     private var homeBaseLocationPickerSheet: some View {
-        HomeBaseLocationPickerSheet(viewModel: viewModel, isPresented: $viewModel.showingHomeBaseLocationPicker)
+        HomeBaseLocationPickerSheet(viewModel: viewModel)
     }
     
     private var nightStandbyContactPopupSheet: some View {

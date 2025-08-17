@@ -262,7 +262,7 @@ struct FDPResultsSection: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
                         
-                        let totalFDP = viewModel.calculateMaxFDP()
+                        let totalFDP = viewModel.cachedTotalFDP
                         Text("\(String(format: "%.1f", totalFDP))h")
                             .font(.title)
                             .fontWeight(.bold)

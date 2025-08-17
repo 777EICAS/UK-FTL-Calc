@@ -9,93 +9,69 @@ import SwiftUI
 
 struct HomeBaseLocationPickerSheet: View {
     @ObservedObject var viewModel: ManualCalcViewModel
-    @Binding var isPresented: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    
+    var filteredAirports: [(String, String)] {
+        if searchText.isEmpty {
+            return Array(AirportsAndAirlines.airports.prefix(100)).map { ($0.0, $0.1) }
+        } else {
+            let filtered = AirportsAndAirlines.airports
+                .filter { airport in
+                    airport.0.localizedCaseInsensitiveContains(searchText) ||
+                    airport.1.localizedCaseInsensitiveContains(searchText)
+                }
+            return Array(filtered.prefix(100)).map { ($0.0, $0.1) }
+        }
+    }
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button("Cancel") {
-                        isPresented = false
-                    }
-                    .foregroundColor(.blue)
-                    
-                    Spacer()
-                    
-                    Text("Select \(viewModel.editingHomeBaseType == "primary" ? "Primary" : "Secondary") Home Base")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    Button("Done") {
-                        isPresented = false
-                    }
-                    .foregroundColor(.blue)
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                
-                Divider()
-                
-                // Search and Filter
+            VStack {
+                // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
                     
-                    TextField("Search airports...", text: .constant(""))
+                    TextField("Search airports...", text: $searchText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top)
                 
-                // Airport List
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(AirportsAndAirlines.airports.prefix(50)), id: \.0) { airport in
-                            Button(action: {
-                                // Update the appropriate home base based on type
-                                if viewModel.editingHomeBaseType == "primary" {
-                                    viewModel.editingHomeBase = airport.0
-                                } else if viewModel.editingHomeBaseType == "secondary" {
-                                    viewModel.editingSecondHomeBase = airport.0
-                                }
-                                isPresented = false
-                            }) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(airport.0)
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(.primary)
-                                        
-                                        Text(airport.1)
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    // Show checkmark for current selection
-                                    let currentLocation = viewModel.editingHomeBaseType == "primary" ? viewModel.editingHomeBase : viewModel.editingSecondHomeBase
-                                    
-                                    if currentLocation == airport.0 {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundColor(.blue)
-                                            .font(.title2)
-                                    }
-                                }
-                                .padding()
-                                .background(Color(.systemBackground))
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            
-                            Divider()
+                // Airport list
+                List(filteredAirports, id: \.0) { airport in
+                    Button(action: {
+                        if viewModel.editingHomeBaseType == "primary" {
+                            viewModel.editingHomeBase = airport.0
+                        } else if viewModel.editingHomeBaseType == "secondary" {
+                            viewModel.editingSecondHomeBase = airport.0
                         }
+                        dismiss()
+                    }) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(airport.0)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text(airport.1)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
             }
-            .navigationBarHidden(true)
+            .navigationTitle("Select Airport")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
