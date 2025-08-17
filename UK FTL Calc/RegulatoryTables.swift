@@ -340,11 +340,18 @@ class RegulatoryTableLookup {
     // MARK: - FDP Lookup Functions
     
     static func lookupFDPAcclimatised(reportTime: String, sectors: Int) -> Double {
+        print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Input: reportTime=\(reportTime), sectors=\(sectors)")
+        
         let timeRange = getTimeRangeFromReportTime(reportTime)
+        print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Time range: \(timeRange)")
         
         guard let entry = FDPAcclimatisedTable.data.first(where: { $0.startTimeRange == timeRange }) else {
+            print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - No table entry found for time range: \(timeRange)")
             return 9.0 // Default minimum
         }
+        
+        print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Found table entry: \(entry.startTimeRange)")
+        print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Available sectors data: \(entry.sectors)")
         
         // Convert sectors to proper index:
         // 1-2 sectors = index 0
@@ -365,8 +372,14 @@ class RegulatoryTableLookup {
             sectorIndex = 8 // 10+ sectors
         }
         
+        print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Sector index: \(sectorIndex)")
+        
         let safeIndex = min(sectorIndex, entry.sectors.count - 1)
-        return entry.sectors[safeIndex]
+        let result = entry.sectors[safeIndex]
+        
+        print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Final result: \(result)h (from index \(safeIndex))")
+        
+        return result
     }
     
     static func lookupFDPUnknownAcclimatised(sectors: Int) -> Double {
@@ -499,26 +512,49 @@ class RegulatoryTableLookup {
     // MARK: - Helper Functions
     
     private static func getTimeRangeFromReportTime(_ reportTime: String) -> String {
+        print("DEBUG: getTimeRangeFromReportTime - Input report time: \(reportTime)")
+        
         // Extract time from report time (e.g., "12:30z" -> "1230")
         let timeString = reportTime.replacingOccurrences(of: "z", with: "").replacingOccurrences(of: ":", with: "")
+        print("DEBUG: getTimeRangeFromReportTime - Cleaned time string: \(timeString)")
+        
         let timeInt = Int(timeString) ?? 0
+        print("DEBUG: getTimeRangeFromReportTime - Parsed time integer: \(timeInt)")
         
         // Map to appropriate time range
-        if timeInt >= 500 && timeInt <= 514 { return "0500-0514" }
-        if timeInt >= 515 && timeInt <= 529 { return "0515-0529" }
-        if timeInt >= 530 && timeInt <= 544 { return "0530-0544" }
-        if timeInt >= 545 && timeInt <= 559 { return "0545-0559" }
-        if timeInt >= 600 && timeInt <= 1329 { return "0600-1329" }
-        if timeInt >= 1330 && timeInt <= 1359 { return "1330-1359" }
-        if timeInt >= 1400 && timeInt <= 1429 { return "1400-1429" }
-        if timeInt >= 1430 && timeInt <= 1459 { return "1430-1459" }
-        if timeInt >= 1500 && timeInt <= 1529 { return "1500-1529" }
-        if timeInt >= 1530 && timeInt <= 1559 { return "1530-1559" }
-        if timeInt >= 1600 && timeInt <= 1629 { return "1600-1629" }
-        if timeInt >= 1630 && timeInt <= 1659 { return "1630-1659" }
-        if timeInt >= 1700 || timeInt <= 459 { return "1700-0459" }
+        let timeRange: String
+        if timeInt >= 500 && timeInt <= 514 { 
+            timeRange = "0500-0514"
+        } else if timeInt >= 515 && timeInt <= 529 { 
+            timeRange = "0515-0529"
+        } else if timeInt >= 530 && timeInt <= 544 { 
+            timeRange = "0530-0544"
+        } else if timeInt >= 545 && timeInt <= 559 { 
+            timeRange = "0545-0559"
+        } else if timeInt >= 600 && timeInt <= 1329 { 
+            timeRange = "0600-1329"
+        } else if timeInt >= 1330 && timeInt <= 1359 { 
+            timeRange = "1330-1359"
+        } else if timeInt >= 1400 && timeInt <= 1429 { 
+            timeRange = "1400-1429"
+        } else if timeInt >= 1430 && timeInt <= 1459 { 
+            timeRange = "1430-1459"
+        } else if timeInt >= 1500 && timeInt <= 1529 { 
+            timeRange = "1500-1529"
+        } else if timeInt >= 1530 && timeInt <= 1559 { 
+            timeRange = "1530-1559"
+        } else if timeInt >= 1600 && timeInt <= 1629 { 
+            timeRange = "1600-1629"
+        } else if timeInt >= 1630 && timeInt <= 1659 { 
+            timeRange = "1630-1659"
+        } else if timeInt >= 1700 || timeInt <= 459 { 
+            timeRange = "1700-0459"
+        } else {
+            timeRange = "1700-0459" // Default for early morning times
+        }
         
-        return "1700-0459" // Default for early morning times
+        print("DEBUG: getTimeRangeFromReportTime - Mapped time range: \(timeRange)")
+        return timeRange
     }
     
     // MARK: - Absolute Limits Access

@@ -40,21 +40,21 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Main FTL Calculator Tab
-            mainCalculatorView
-                .tabItem {
-                    Image(systemName: "airplane")
-                        .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
-                    Text("FTL Calculator")
-                }
-                .tag(0)
-            
             // Manual Calc Tab
             ManualCalcView()
                 .tabItem {
                     Image(systemName: "pencil.and.outline")
-                        .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
+                        .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
                     Text("Manual Calc")
+                }
+                .tag(0)
+            
+            // Main FTL Calculator Tab
+            mainCalculatorView
+                .tabItem {
+                    Image(systemName: "airplane")
+                        .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
+                    Text("FTL Calculator")
                 }
                 .tag(1)
             

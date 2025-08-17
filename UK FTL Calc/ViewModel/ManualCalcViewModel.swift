@@ -287,6 +287,11 @@ class ManualCalcViewModel: ObservableObject {
     func calculateAcclimatisation() -> String {
         let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
         
+        print("DEBUG: calculateAcclimatisation - Current departure: \(currentDeparture)")
+        print("DEBUG: calculateAcclimatisation - Home base: \(homeBase)")
+        print("DEBUG: calculateAcclimatisation - Timezone difference: \(timezoneDifference)h")
+        print("DEBUG: calculateAcclimatisation - Elapsed time: \(elapsedTime)h")
+        
         let acclimatisationStatus = UKCAALimits.determineAcclimatisationStatus(
             timeZoneDifference: timezoneDifference,
             elapsedTimeHours: Double(elapsedTime),
@@ -295,11 +300,16 @@ class ManualCalcViewModel: ObservableObject {
             departure: currentDeparture
         )
         
+        print("DEBUG: calculateAcclimatisation - UKCAALimits result: \(acclimatisationStatus.reason)")
+        
         if acclimatisationStatus.reason.contains("Result B") {
+            print("DEBUG: calculateAcclimatisation - Returning Result B")
             return "B"
         } else if acclimatisationStatus.reason.contains("Result D") {
+            print("DEBUG: calculateAcclimatisation - Returning Result D")
             return "D"
         } else {
+            print("DEBUG: calculateAcclimatisation - Returning Result X")
             return "X"
         }
     }
@@ -319,12 +329,33 @@ class ManualCalcViewModel: ObservableObject {
     
     // MARK: - FDP Calculation Functions
     func calculateMaxFDP() -> Double {
+        print("=== DEBUG: calculateMaxFDP START ===")
+        print("DEBUG: calculateMaxFDP - Current state:")
+        print("  - Home base: \(homeBase)")
+        print("  - Selected reporting location: \(selectedReportingLocation)")
+        print("  - Number of sectors: \(numberOfSectors)")
+        print("  - Reporting date time: \(reportingDateTime)")
+        print("  - Standby enabled: \(isStandbyEnabled)")
+        print("  - Standby type: \(selectedStandbyType)")
+        print("  - Timezone difference: \(timezoneDifference)")
+        print("  - Elapsed time: \(elapsedTime)")
+        print("  - Has in-flight rest: \(hasInFlightRest)")
+        print("  - Has split duty: \(hasSplitDuty)")
+        print("  - Has extended FDP: \(hasExtendedFDP)")
+        print("=====================================")
+        
         let acclimatisationResult = calculateAcclimatisation()
+        
+        print("DEBUG: calculateMaxFDP - Acclimatisation result: \(acclimatisationResult)")
         
         let baseFDP: Double
         switch acclimatisationResult {
         case "B", "D":
             let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
+            
+            print("DEBUG: calculateMaxFDP - Using acclimatised crew calculation (Result: \(acclimatisationResult))")
+            print("DEBUG: calculateMaxFDP - Current departure: \(currentDeparture)")
+            print("DEBUG: calculateMaxFDP - Home base: \(homeBase)")
             
             // Use the appropriate baseline time based on standby type
             let referenceDateTime: Date
@@ -332,8 +363,8 @@ class ManualCalcViewModel: ObservableObject {
                 switch selectedStandbyType {
                 case "Airport Duty":
                     referenceDateTime = airportDutyStartDateTime
-                            case "Airport Standby":
-                referenceDateTime = reportingDateTime // Airport standby: FDP starts from report time
+                case "Airport Standby":
+                    referenceDateTime = reportingDateTime // Airport standby: FDP starts from report time
                 case "Standby":
                     referenceDateTime = reportingDateTime // Home standby: FDP starts from report time
                 case "Reserve":
@@ -345,19 +376,34 @@ class ManualCalcViewModel: ObservableObject {
                 referenceDateTime = reportingDateTime
             }
             
+            print("DEBUG: calculateMaxFDP - Reference date time: \(referenceDateTime)")
+            
             let timeString = utcTimeFormatter.string(from: referenceDateTime)
+            print("DEBUG: calculateMaxFDP - UTC time string: \(timeString)")
+            
             let localTime = TimeUtilities.getLocalTime(for: timeString, airportCode: currentDeparture)
+            print("DEBUG: calculateMaxFDP - Local time at \(currentDeparture): \(localTime)")
+            
             let sectorsForLookup = numberOfSectors == 1 ? 2 : numberOfSectors
+            print("DEBUG: calculateMaxFDP - Sectors for lookup: \(sectorsForLookup) (original: \(numberOfSectors))")
             
             baseFDP = RegulatoryTableLookup.lookupFDPAcclimatised(reportTime: localTime, sectors: sectorsForLookup)
+            print("DEBUG: calculateMaxFDP - Base FDP from Table 2: \(baseFDP)h")
             
         case "X":
+            print("DEBUG: calculateMaxFDP - Using unknown acclimatisation calculation (Result: \(acclimatisationResult))")
+            print("DEBUG: calculateMaxFDP - Sectors: \(numberOfSectors)")
+            
             let result = RegulatoryTableLookup.lookupFDPUnknownAcclimatised(sectors: numberOfSectors)
             baseFDP = result
+            print("DEBUG: calculateMaxFDP - Base FDP from Table 3: \(baseFDP)h")
             
         default:
+            print("DEBUG: calculateMaxFDP - Unknown acclimatisation result: \(acclimatisationResult), using default")
             baseFDP = 9.0
         }
+        
+        print("DEBUG: calculateMaxFDP - Final base FDP: \(baseFDP)h")
         
         // Return base FDP without standby reduction - standby reduction will be applied in calculateTotalFDP()
         return baseFDP
