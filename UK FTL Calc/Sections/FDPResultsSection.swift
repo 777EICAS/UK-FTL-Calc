@@ -34,7 +34,7 @@ struct FDPResultsSection: View {
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                         
-                        Text("\(String(format: "%.1f", viewModel.calculateMaxFDP()))h")
+                        Text("\(String(format: "%.1f", viewModel.cachedMaxFDP))h")
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(.primary)
@@ -66,9 +66,9 @@ struct FDPResultsSection: View {
                 
                 // Home Standby Rules Applied (if applicable)
                 if viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Standby" {
-                    let standbyDuration = viewModel.calculateStandbyDuration()
+                    let standbyDuration = viewModel.cachedStandbyDuration
                     let thresholdHours = (viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasSplitDuty ? 8.0 : 6.0
-                    let totalAwakeTime = standbyDuration + viewModel.calculateMaxFDP()
+                    let totalAwakeTime = standbyDuration + viewModel.cachedMaxFDP
                     
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -99,7 +99,7 @@ struct FDPResultsSection: View {
                                 
                                 // Show in-flight rest reduction if applicable
                                 if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
-                                    let inFlightRestFDP = viewModel.calculateInFlightRestExtension()
+                                    let inFlightRestFDP = viewModel.cachedInFlightRestExtension
                                     let finalFDP = inFlightRestFDP - reduction
                                     Text("In-Flight Rest FDP: \(String(format: "%.1f", inFlightRestFDP))h - \(String(format: "%.1f", reduction))h = \(String(format: "%.1f", finalFDP))h")
                                         .font(.caption)
@@ -133,7 +133,7 @@ struct FDPResultsSection: View {
                                 .fontWeight(.medium)
                                 .foregroundColor(.secondary)
                             
-                            Text("\(String(format: "%.1f", viewModel.calculateInFlightRestExtension()))h")
+                            Text("\(String(format: "%.1f", viewModel.cachedInFlightRestExtension))h")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.blue)
@@ -172,7 +172,7 @@ struct FDPResultsSection: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
                         
-                        let totalFDP = viewModel.calculateTotalFDP()
+                        let totalFDP = viewModel.cachedTotalFDP
                         Text("\(String(format: "%.1f", totalFDP))h")
                             .font(.title)
                             .fontWeight(.bold)

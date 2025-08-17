@@ -48,9 +48,7 @@ struct StandbySection: View {
                             }
                         }
                         .onChange(of: viewModel.selectedStandbyType) { _, newValue in
-                            if newValue == "Airport Duty" {
-                                viewModel.synchronizeAirportDutyTime()
-                            }
+                            viewModel.synchronizeStandbyTimes()
                         }
                 }
                 .padding(.horizontal, 16)
@@ -83,7 +81,7 @@ struct StandbySection: View {
                     .cornerRadius(8)
                     
                     // Night Standby Status (if applicable)
-                    if viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Standby" {
+                    if viewModel.isStandbyEnabled && (viewModel.selectedStandbyType == "Standby" || viewModel.selectedStandbyType == "Airport Standby") {
                         let standbyStartLocal = TimeUtilities.getLocalTime(for: viewModel.utcTimeFormatter.string(from: viewModel.effectiveStandbyStartTime), airportCode: viewModel.homeBase)
                         let standbyStartHour = Int(standbyStartLocal.prefix(2)) ?? 0
                         let isNightStandby = (standbyStartHour >= 23 || standbyStartHour < 7)

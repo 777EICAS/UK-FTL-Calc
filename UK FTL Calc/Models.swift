@@ -8,6 +8,9 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Debug Configuration
+private let enableDebugOutput = false // Set to false to disable debug output
+
 // MARK: - Pilot Types
 enum PilotType: String, CaseIterable {
     case singlePilot = "single"
@@ -234,11 +237,13 @@ struct UKCAALimits {
         let localTimeMinutes = localHour * 60 + minute
         
         // Debug logging
-        print("DEBUG FDP: UTC time \(reportTime) -> Local time \(String(format: "%02d:%02d", localHour, minute))")
-        print("DEBUG FDP: Using \(isAcclimatised ? "departure" : "home base") time zone (\(relevantAirport))")
-        print("DEBUG FDP: Time zone offset from UTC: \(timeZoneOffset) hours")
-        print("DEBUG FDP: Local time in minutes: \(localTimeMinutes)")
-        print("DEBUG FDP: Number of sectors: \(numberOfSectors)")
+        if enableDebugOutput {
+            print("DEBUG FDP: UTC time \(reportTime) -> Local time \(String(format: "%02d:%02d", localHour, minute))")
+            print("DEBUG FDP: Using \(isAcclimatised ? "departure" : "home base") time zone (\(relevantAirport))")
+            print("DEBUG FDP: Time zone offset from UTC: \(timeZoneOffset) hours")
+            print("DEBUG FDP: Local time in minutes: \(localTimeMinutes)")
+            print("DEBUG FDP: Number of sectors: \(numberOfSectors)")
+        }
         
         // FDP limits based on local acclimatised time and number of sectors
         // Based on UK CAA Regulation 965/2012 ORO.FTL.205 Table 2 - Maximum daily FDP for acclimatised crew members
@@ -247,20 +252,26 @@ struct UKCAALimits {
         // For non-acclimatised crew, use the FDPUnknownAcclimatisationTable limits
         if !isAcclimatised {
             let sectorIndex = min(numberOfSectors - 1, FDPUnknownAcclimatisationTable.data.count - 1)
-            print("DEBUG FDP: Non-acclimatised crew - using Table 3 (Unknown Acclimatisation Table)")
-            print("DEBUG FDP: Table 3 Reference - Sectors: \(numberOfSectors), Index: \(sectorIndex), FDP Limit: \(FDPUnknownAcclimatisationTable.data[sectorIndex])h")
+            if enableDebugOutput {
+                print("DEBUG FDP: Non-acclimatised crew - using Table 3 (Unknown Acclimatisation Table)")
+                print("DEBUG FDP: Table 3 Reference - Sectors: \(numberOfSectors), Index: \(sectorIndex), FDP Limit: \(FDPUnknownAcclimatisationTable.data[sectorIndex])h")
+            }
             return FDPUnknownAcclimatisationTable.data[sectorIndex]
         }
         
         // Convert time ranges to minutes for easier comparison
-        print("DEBUG FDP: Acclimatised crew - using Table 2 (Acclimatised Crew Table)")
-        print("DEBUG FDP: Table 2 Reference - Local time: \(String(format: "%02d:%02d", localHour, minute)), Minutes: \(localTimeMinutes)")
-        print("DEBUG FDP: Table 2 Reference - Sectors: \(numberOfSectors)")
+        if enableDebugOutput {
+            print("DEBUG FDP: Acclimatised crew - using Table 2 (Acclimatised Crew Table)")
+            print("DEBUG FDP: Table 2 Reference - Local time: \(String(format: "%02d:%02d", localHour, minute)), Minutes: \(localTimeMinutes)")
+            print("DEBUG FDP: Table 2 Reference - Sectors: \(numberOfSectors)")
+        }
         
         if numberOfSectors == 1 || numberOfSectors == 2 {
             // 1-2 Sectors
             if localTimeMinutes >= 360 && localTimeMinutes <= 809 { // 06:00-13:29
-                print("DEBUG FDP: Table 2 Reference - Found: Row '1-2 sectors', Column '06:00-13:29' = 13.0h")
+                if enableDebugOutput {
+                    print("DEBUG FDP: Table 2 Reference - Found: Row '1-2 sectors', Column '06:00-13:29' = 13.0h")
+                }
                 return 13.0 // 13:00
             } else if localTimeMinutes >= 810 && localTimeMinutes <= 839 { // 13:30-13:59
                 return 12.75 // 12:45
@@ -275,7 +286,9 @@ struct UKCAALimits {
             } else if localTimeMinutes >= 960 && localTimeMinutes <= 989 { // 16:00-16:29
                 return 11.5 // 11:30
             } else if localTimeMinutes >= 990 && localTimeMinutes <= 1019 { // 16:30-16:59
-                print("DEBUG FDP: Selected time window 16:30-16:59 -> 11.25 hours")
+                if enableDebugOutput {
+                    print("DEBUG FDP: Selected time window 16:30-16:59 -> 11.25 hours")
+                }
                 return 11.25 // 11:15
             } else if localTimeMinutes >= 1020 || localTimeMinutes <= 299 { // 17:00-04:59
                 return 11.0 // 11:00
@@ -685,8 +698,10 @@ struct UKCAALimits {
         // Apply UK CAA ±2 hour band rule first
         // Crews are considered acclimatised to a 2-hour wide time zone band around their acclimatised time zone
         if abs(timeZoneDifference) <= 2 {
-            print("DEBUG: Table 1 Reference - Time zone difference: \(timeZoneDifference)h (within ±2 hour band)")
-            print("DEBUG: Table 1 Reference - Found: Within ±2 hour band = Result 'D' (acclimatised to departure location)")
+            if enableDebugOutput {
+                print("DEBUG: Table 1 Reference - Time zone difference: \(timeZoneDifference)h (within ±2 hour band)")
+                print("DEBUG: Table 1 Reference - Found: Within ±2 hour band = Result 'D' (acclimatised to departure location)")
+            }
             // Result 'D': Crew is acclimatised to current departure location (within ±2 hour band)
             // Use Table 2 with departure local time for FDP calculations
             return (true, false, "Result D: Within ±2 hour band - acclimatised to departure location")
@@ -695,23 +710,31 @@ struct UKCAALimits {
         // For time zone differences > 2 hours, apply UK CAA Table 1 rules
         // Less than 4 hours time zone difference: Apply Table 1 rules based on elapsed time
         if timeZoneDifference > 2 && timeZoneDifference < 4 {
-            print("DEBUG: Table 1 Reference - Time zone difference: 2-4h, Elapsed time: \(elapsedTimeHours)h")
-            print("DEBUG: Table 1 Reference - Looking up: Row '2-4h', Column based on elapsed time")
+            if enableDebugOutput {
+                print("DEBUG: Table 1 Reference - Time zone difference: 2-4h, Elapsed time: \(elapsedTimeHours)h")
+                print("DEBUG: Table 1 Reference - Looking up: Row '2-4h', Column based on elapsed time")
+            }
             
             if elapsedTimeHours < 48.0 {
                 // Result 'B': User is acclimatised to home base time zone
-                print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '<48h' = Result 'B'")
-                print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '<48h' = Result 'B'")
+                    print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                }
                 return (true, true, "Result B: 2-4h difference with <48h elapsed - acclimatised to home base (Result B)")
             } else if elapsedTimeHours >= 48.0 && elapsedTimeHours < 72.0 {
                 // Result 'D': User is acclimatised to current departure location
-                print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '48-71:59h' = Result 'D'")
-                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '48-71:59h' = Result 'D'")
+                    print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                }
                 return (true, false, "Result D: 2-4h difference with 48-71:59h elapsed - acclimatised to departure (Result D)")
             } else if elapsedTimeHours >= 72.0 {
                 // Result 'D': User is acclimatised to current departure location
-                print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '≥72h' = Result 'D'")
-                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '2-4h', Column '≥72h' = Result 'D'")
+                    print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                }
                 return (true, false, "Result D: 2-4h difference with ≥72h elapsed - acclimatised to departure (Result D)")
             }
         }
@@ -719,23 +742,31 @@ struct UKCAALimits {
         // 4-6 hours time zone difference: Apply Table 1 rules
         if timeZoneDifference >= 4 && timeZoneDifference <= 6 {
             // UK CAA Table 1: For 4-6 hour differences, acclimatisation depends on elapsed time
-            print("DEBUG: Table 1 Reference - Time zone difference: 4-6h, Elapsed time: \(elapsedTimeHours)h")
-            print("DEBUG: Table 1 Reference - Looking up: Row '4-6h', Column based on elapsed time")
+            if enableDebugOutput {
+                print("DEBUG: Table 1 Reference - Time zone difference: 4-6h, Elapsed time: \(elapsedTimeHours)h")
+                print("DEBUG: Table 1 Reference - Looking up: Row '4-6h', Column based on elapsed time")
+            }
             
             if elapsedTimeHours >= 48.0 && elapsedTimeHours < 72.0 {
                 // Result 'X': Unknown acclimatisation state (48-71:59h elapsed with 4-6h time zone difference)
-                print("DEBUG: Table 1 Reference - Found: Row '4-6h', Column '48-71:59h' = Result 'X'")
-                print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '4-6h', Column '48-71:59h' = Result 'X'")
+                    print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                }
                 return (false, false, "Result X: 4-6h difference with 48-71:59h elapsed - unknown acclimatisation state (X)")
             } else if elapsedTimeHours >= 72.0 {
                 // Result 'D': User is acclimatised to current departure location
-                print("DEBUG: Table 1 Reference - Found: Row '4-6h', Column '≥72h' = Result 'D'")
-                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '4-6h', Column '≥72h' = Result 'D'")
+                    print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                }
                 return (true, true, "Result D: 4-6h difference with ≥72h elapsed - acclimatised (Result D)")
             } else {
                 // Result 'B': User is acclimatised to home base time zone
-                print("DEBUG: Table 1 Reference - Found: Row '4-6h', Column '<48h' = Result 'B'")
-                print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '4-6h', Column '<48h' = Result 'B'")
+                    print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                }
                 // For Result 'B': Always use Table 2 with home base local time, regardless of departure location
                 // Result 'B' means acclimatised to home base time zone, not current departure
                 return (true, true, "Result B: 4-6h difference with <48h elapsed - acclimatised to home base (Result B)")
@@ -745,33 +776,45 @@ struct UKCAALimits {
         // 6-9 hours time zone difference: Apply Table 1 rules
         if timeZoneDifference > 6 && timeZoneDifference <= 9 {
             // UK CAA Table 1: For 6-9 hour differences, acclimatisation depends on elapsed time
-            print("DEBUG: Table 1 Reference - Time zone difference: 6-9h, Elapsed time: \(elapsedTimeHours)h")
-            print("DEBUG: Table 1 Reference - Looking up: Row '6-9h', Column based on elapsed time")
+            if enableDebugOutput {
+                print("DEBUG: Table 1 Reference - Time zone difference: 6-9h, Elapsed time: \(elapsedTimeHours)h")
+                print("DEBUG: Table 1 Reference - Looking up: Row '6-9h', Column based on elapsed time")
+            }
             
             if elapsedTimeHours >= 48.0 && elapsedTimeHours < 72.0 {
                 // Result 'X': Unknown acclimatisation state (48-71:59h elapsed with 6-9h time zone difference)
-                print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '48-71:59h' = Result 'X'")
-                print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '48-71:59h' = Result 'X'")
+                    print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                }
                 return (false, false, "Result X: 6-9h difference with 48-71:59h elapsed - unknown acclimatisation state (X)")
             } else if elapsedTimeHours >= 72.0 && elapsedTimeHours < 96.0 {
                 // Result 'X': Unknown acclimatisation state (72-95:59h elapsed with 6-9h time zone difference)
-                print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '72-95:59h' = Result 'X'")
-                print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '72-95:59h' = Result 'X'")
+                    print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                }
                 return (false, false, "Result X: 6-9h difference with 72-95:59h elapsed - unknown acclimatisation state (X)")
             } else if elapsedTimeHours >= 96.0 && elapsedTimeHours < 120.0 {
                 // Result 'D': User is acclimatised to current departure location
-                print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '96-119:59h' = Result 'D'")
-                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '96-119:59h' = Result 'D'")
+                    print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                }
                 return (true, true, "Result D: 6-9h difference with 96-119:59h elapsed - acclimatised (Result D)")
             } else if elapsedTimeHours >= 120.0 {
                 // Result 'D': User is acclimatised to current departure location
-                print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '≥120h' = Result 'D'")
-                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '≥120h' = Result 'D'")
+                    print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                }
                 return (true, true, "Result D: 6-9h difference with ≥120h elapsed - acclimatised (Result D)")
             } else {
                 // Result 'B': User is acclimatised to home base time zone
-                print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '<48h' = Result 'B'")
-                print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '6-9h', Column '<48h' = Result 'B'")
+                    print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                }
                 // For Result 'B': Always use Table 2 with home base local time, regardless of departure location
                 // Result 'B' means acclimatised to home base time zone, not current departure
                 return (true, true, "Result B: 6-9h difference with <48h elapsed - acclimatised to home base (Result B)")
@@ -781,33 +824,45 @@ struct UKCAALimits {
         // 9-12 hours time zone difference: Apply Table 1 rules
         if timeZoneDifference > 9 && timeZoneDifference <= 12 {
             // UK CAA Table 1: For 9-12 hour differences, acclimatisation depends on elapsed time
-            print("DEBUG: Table 1 Reference - Time zone difference: 9-12h, Elapsed time: \(elapsedTimeHours)h")
-            print("DEBUG: Table 1 Reference - Looking up: Row '9-12h', Column based on elapsed time")
+            if enableDebugOutput {
+                print("DEBUG: Table 1 Reference - Time zone difference: 9-12h, Elapsed time: \(elapsedTimeHours)h")
+                print("DEBUG: Table 1 Reference - Looking up: Row '9-12h', Column based on elapsed time")
+            }
             
             if elapsedTimeHours >= 48.0 && elapsedTimeHours < 72.0 {
                 // Result 'X': Unknown acclimatisation state (48-71:59h elapsed with 9-12h time zone difference)
-                print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '48-71:59h' = Result 'X'")
-                print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '48-71:59h' = Result 'X'")
+                    print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                }
                 return (false, false, "Result X: 9-12h difference with 48-71:59h elapsed - unknown acclimatisation state (X)")
             } else if elapsedTimeHours >= 72.0 && elapsedTimeHours < 96.0 {
                 // Result 'X': Unknown acclimatisation state (72-95:59h elapsed with 9-12h time zone difference)
-                print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '72-95:59h' = Result 'X'")
-                print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '72-95:59h' = Result 'X'")
+                    print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                }
                 return (false, false, "Result X: 9-12h difference with 72-95:59h elapsed - unknown acclimatisation state (X)")
             } else if elapsedTimeHours >= 96.0 && elapsedTimeHours < 120.0 {
                 // Result 'X': Unknown acclimatisation state (96-119:59h elapsed with 9-12h time zone difference)
-                print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '96-119:59h' = Result 'X'")
-                print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '96-119:59h' = Result 'X'")
+                    print("DEBUG: Table 1 Reference - Result 'X' means: Unknown acclimatisation state - use Table 3 for FDP limits")
+                }
                 return (false, false, "Result X: 9-12h difference with 96-119:59h elapsed - unknown acclimatisation state (X)")
             } else if elapsedTimeHours >= 120.0 {
                 // Result 'D': User is acclimatised to current departure location
-                print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '≥120h' = Result 'D'")
-                print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '≥120h' = Result 'D'")
+                    print("DEBUG: Table 1 Reference - Result 'D' means: Acclimatised to current departure - use Table 2 with departure local time")
+                }
                 return (true, true, "Result D: 9-12h difference with ≥120h elapsed - acclimatised (Result D)")
             } else {
                 // Result 'B': User is acclimatised to home base time zone
-                print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '<48h' = Result 'B'")
-                print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                if enableDebugOutput {
+                    print("DEBUG: Table 1 Reference - Found: Row '9-12h', Column '<48h' = Result 'B'")
+                    print("DEBUG: Table 1 Reference - Result 'B' means: Acclimatised to home base - use Table 2 with home base local time")
+                }
                 // For Result 'B': Always use Table 2 with home base local time, regardless of departure location
                 // Result 'B' means acclimatised to home base time zone, not current departure
                 return (true, true, "Result B: 9-12h difference with <48h elapsed - acclimatised to home base (Result B)")
@@ -816,12 +871,16 @@ struct UKCAALimits {
         
         // Default case for any time zone differences > 12 hours (should not occur in practice)
         if timeZoneDifference > 12 {
-            print("DEBUG: Table 1 Reference - Time zone difference: >12h - invalid case")
+            if enableDebugOutput {
+                print("DEBUG: Table 1 Reference - Time zone difference: >12h - invalid case")
+            }
             return (false, false, "Result X: Time zone difference > 12h - invalid case")
         }
         
         // Default case
-        print("DEBUG: Table 1 Reference - Unable to determine acclimatisation status")
+        if enableDebugOutput {
+            print("DEBUG: Table 1 Reference - Unable to determine acclimatisation status")
+        }
         return (false, false, "Result X: Unable to determine acclimatisation status")
     }
     

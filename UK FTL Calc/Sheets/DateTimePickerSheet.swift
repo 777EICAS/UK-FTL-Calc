@@ -32,6 +32,8 @@ struct DateTimePickerSheet: View {
                     .datePickerStyle(WheelDatePickerStyle())
                     .labelsHidden()
                     .onChange(of: getDateSelection().wrappedValue) { _, _ in
+                        // Update the time when date changes to ensure synchronization
+                        updateTimeFromInput()
                         if isStandbyTime {
                             viewModel.checkNightStandbyContact()
                         }
@@ -93,6 +95,8 @@ struct DateTimePickerSheet: View {
                     .font(.title3)
                     
                     Button("Done") {
+                        // Update the time before dismissing the sheet
+                        updateTimeFromInput()
                         isPresented = false
                     }
                     .foregroundColor(.blue)
@@ -102,9 +106,15 @@ struct DateTimePickerSheet: View {
                 
                 Spacer()
             }
+            .onAppear {
+                // Initialize hour/minute pickers to match current date/time values
+                initializeTimeComponents()
+            }
             .navigationTitle(getNavigationTitle())
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: Button("Done") {
+                // Update the time before dismissing the sheet
+                updateTimeFromInput()
                 isPresented = false
             })
         }
@@ -169,6 +179,23 @@ struct DateTimePickerSheet: View {
             return "Standby Start Time"
         } else {
             return "Time"
+        }
+    }
+    
+    private func initializeTimeComponents() {
+        // Extract hour and minute from the current date selection and update the picker values
+        let currentDate = getDateSelection().wrappedValue
+        let calendar = Calendar.current
+        
+        if isAirportDutyTime {
+            viewModel.selectedAirportDutyHour = calendar.component(.hour, from: currentDate)
+            viewModel.selectedAirportDutyMinute = calendar.component(.minute, from: currentDate)
+        } else if isStandbyTime {
+            viewModel.selectedStandbyHour = calendar.component(.hour, from: currentDate)
+            viewModel.selectedStandbyMinute = calendar.component(.minute, from: currentDate)
+        } else {
+            viewModel.selectedHour = calendar.component(.hour, from: currentDate)
+            viewModel.selectedMinute = calendar.component(.minute, from: currentDate)
         }
     }
 }

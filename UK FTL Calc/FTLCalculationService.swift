@@ -323,8 +323,16 @@ class FTLCalculationService {
             }
         }
         
-        // Ensure minimum FDP
-        baseFDP = max(baseFDP, 9.0)
+        // Ensure minimum FDP (except for home standby cases per UK CAA Rule v(b))
+        let isHomeStandbyReduction = input.standbyType == .homeStandby && 
+            input.standbyStartTime != nil && 
+            input.standbyStartTime!.isEmpty == false
+        
+        if !isHomeStandbyReduction {
+            baseFDP = max(baseFDP, 9.0)
+        } else {
+            print("DEBUG: Home standby case - allowing FDP below 9.0h as per UK CAA Rule v(b)")
+        }
         
         return FDPCalculationResult(
             maxFDP: baseFDP,

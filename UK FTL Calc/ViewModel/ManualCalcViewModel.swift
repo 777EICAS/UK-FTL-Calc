@@ -9,53 +9,110 @@ import SwiftUI
 
 @MainActor
 class ManualCalcViewModel: ObservableObject {
+    // MARK: - Debug Configuration
+    private let enableDebugOutput = false // Set to false to disable debug output
+    
     // MARK: - App Storage
-    @AppStorage("homeBase") var homeBase: String = "LHR"
-    @AppStorage("secondHomeBase") var secondHomeBase: String = ""
+    @AppStorage("homeBase") var homeBase: String = "LHR" {
+        didSet { clearCache() }
+    }
+    @AppStorage("secondHomeBase") var secondHomeBase: String = "" {
+        didSet { clearCache() }
+    }
     
     // MARK: - Standby/Reserve State
     @Published var showingStandbyOptions = false
-    @Published var selectedStandbyType: String = "Standby"
-    @Published var isStandbyEnabled = false
+    @Published var selectedStandbyType: String = "Standby" {
+        didSet { clearCache() }
+    }
+    @Published var isStandbyEnabled = false {
+        didSet { clearCache() }
+    }
     @Published var showingLocationPicker = false
     @Published var selectedStandbyLocation: String = ""
     @Published var showingDateTimePicker = false
-    @Published var standbyStartDateTime = Date()
-    @Published var airportDutyStartDateTime = Date() // NEW: Separate field for airport duty start time
+    @Published var standbyStartDateTime = Date() {
+        didSet { clearCache() }
+    }
+    @Published var airportDutyStartDateTime = Date() { // NEW: Separate field for airport duty start time
+        didSet { clearCache() }
+    }
     @Published var showingAirportDutyDateTimePicker = false // NEW: Control airport duty date time picker sheet
     @Published var showingReportingLocationPicker = false
     @Published var selectedReportingLocation: String = ""
     @Published var showingReportingDateTimePicker = false
-    @Published var reportingDateTime: Date = Date()
+    @Published var reportingDateTime: Date = Date() {
+        didSet { clearCache() }
+    }
     
     // MARK: - Acclimatisation State
     @Published var showingAcclimatisationPicker = false
-    @Published var selectedAcclimatisation: String = ""
-    @Published var timezoneDifference: Int = 0
-    @Published var elapsedTime: Int = 0
+    @Published var selectedAcclimatisation: String = "" {
+        didSet { clearCache() }
+    }
+    @Published var timezoneDifference: Int = 0 {
+        didSet { clearCache() }
+    }
+    @Published var elapsedTime: Int = 0 {
+        didSet { clearCache() }
+    }
     
     // MARK: - Sectors and FDP Extensions State
-    @Published var numberOfSectors: Int = 1
-    @Published var hasInFlightRest: Bool = false
-    @Published var restFacilityType: RestFacilityType = .none
-    @Published var hasSplitDuty: Bool = false
-    @Published var hasExtendedFDP: Bool = false
+    @Published var numberOfSectors: Int = 1 {
+        didSet { clearCache() }
+    }
+    @Published var hasInFlightRest: Bool = false {
+        didSet { clearCache() }
+    }
+    @Published var restFacilityType: RestFacilityType = .none {
+        didSet { clearCache() }
+    }
+    @Published var hasSplitDuty: Bool = false {
+        didSet { clearCache() }
+    }
+    @Published var hasExtendedFDP: Bool = false {
+        didSet { clearCache() }
+    }
     @Published var showingInFlightRestPicker = false
-    @Published var inFlightRestSectors: Int = 1 // 1 = 1-2 sectors, 3 = 3 sectors
-    @Published var isLongFlight: Bool = false // Only applicable for 1-2 sectors
-    @Published var additionalCrewMembers: Int = 1 // 1 or 2 additional crew
+    @Published var inFlightRestSectors: Int = 1 { // 1 = 1-2 sectors, 3 = 3 sectors
+        didSet { clearCache() }
+    }
+    @Published var isLongFlight: Bool = false { // Only applicable for 1-2 sectors
+        didSet { clearCache() }
+    }
+    @Published var additionalCrewMembers: Int = 1 { // 1 or 2 additional crew
+        didSet { clearCache() }
+    }
     
     // MARK: - Block Time State
-    @Published var estimatedBlockTime: Double = 0.0 // Estimated flight time in hours
+    @Published var estimatedBlockTime: Double = 0.0 { // Estimated flight time in hours
+        didSet { clearCache() }
+    }
     @Published var showingBlockTimePicker = false
-    @Published var selectedHour: Int = 12 // Track selected hour for reporting time input
-    @Published var selectedMinute: Int = 20 // Track selected minute for reporting time input
-    @Published var selectedBlockTimeHour: Int = 0 // Track selected hour for block time input
-    @Published var selectedBlockTimeMinute: Int = 0 // Track selected minute for block time input
-    @Published var selectedStandbyHour: Int = 9 // Track selected hour for standby time input
-    @Published var selectedStandbyMinute: Int = 0 // Track selected minute for standby time input
-    @Published var selectedAirportDutyHour: Int = 9 // NEW: Track selected hour for airport duty start time input
-    @Published var selectedAirportDutyMinute: Int = 0 // NEW: Track selected minute for airport duty start time input
+    @Published var selectedHour: Int = 12 { // Track selected hour for reporting time input
+        didSet { clearCache() }
+    }
+    @Published var selectedMinute: Int = 20 { // Track selected minute for reporting time input
+        didSet { clearCache() }
+    }
+    @Published var selectedBlockTimeHour: Int = 0 { // Track selected hour for block time input
+        didSet { clearCache() }
+    }
+    @Published var selectedBlockTimeMinute: Int = 0 { // Track selected minute for block time input
+        didSet { clearCache() }
+    }
+    @Published var selectedStandbyHour: Int = 9 { // Track selected hour for standby time input
+        didSet { clearCache() }
+    }
+    @Published var selectedStandbyMinute: Int = 0 { // Track selected minute for standby time input
+        didSet { clearCache() }
+    }
+    @Published var selectedAirportDutyHour: Int = 9 { // NEW: Track selected hour for airport duty start time input
+        didSet { clearCache() }
+    }
+    @Published var selectedAirportDutyMinute: Int = 0 { // NEW: Track selected minute for airport duty start time input
+        didSet { clearCache() }
+    }
     
     // MARK: - Details Sheets State
     @Published var showingWithDiscretionDetails = false
@@ -72,9 +129,15 @@ class ManualCalcViewModel: ObservableObject {
     // MARK: - Night Standby Contact State
     @Published var showingNightStandbyContactPopup = false
     @Published var wasContactedBefore0700 = false
-    @Published var contactTimeLocal = Date()
-    @Published var selectedContactHour: Int = 7
-    @Published var selectedContactMinute: Int = 0
+    @Published var contactTimeLocal = Date() {
+        didSet { clearCache() }
+    }
+    @Published var selectedContactHour: Int = 7 {
+        didSet { clearCache() }
+    }
+    @Published var selectedContactMinute: Int = 0 {
+        didSet { clearCache() }
+    }
     
     // MARK: - Computed Properties
     var defaultReportingLocation: String {
@@ -85,11 +148,81 @@ class ManualCalcViewModel: ObservableObject {
         return homeBase
     }
     
+    // Cached calculation results to avoid excessive recalculations
+    private var _cachedMaxFDP: Double?
+    private var _cachedTotalFDP: Double?
+    private var _cachedInFlightRestExtension: Double?
+    private var _cachedStandbyDuration: Double?
+    private var _cachedAcclimatisation: String?
+    
+    // Computed properties that cache results
+    var cachedMaxFDP: Double {
+        if let cached = _cachedMaxFDP {
+            return cached
+        }
+        let result = calculateMaxFDP()
+        _cachedMaxFDP = result
+        return result
+    }
+    
+    var cachedTotalFDP: Double {
+        if let cached = _cachedTotalFDP {
+            return cached
+        }
+        let result = calculateTotalFDP()
+        _cachedTotalFDP = result
+        return result
+    }
+    
+    var cachedInFlightRestExtension: Double {
+        if let cached = _cachedInFlightRestExtension {
+            return cached
+        }
+        let result = calculateInFlightRestExtension()
+        _cachedInFlightRestExtension = result
+        return result
+    }
+    
+    var cachedStandbyDuration: Double {
+        if let cached = _cachedStandbyDuration {
+            return cached
+        }
+        let result = calculateStandbyDuration()
+        _cachedStandbyDuration = result
+        return result
+    }
+    
+    var cachedAcclimatisation: String {
+        if let cached = _cachedAcclimatisation {
+            return cached
+        }
+        let result = calculateAcclimatisation()
+        _cachedAcclimatisation = result
+        return result
+    }
+    
+    // Method to clear cache when values change
+    func clearCache() {
+        _cachedMaxFDP = nil
+        _cachedTotalFDP = nil
+        _cachedInFlightRestExtension = nil
+        _cachedStandbyDuration = nil
+        _cachedAcclimatisation = nil
+    }
+    
     // Effective standby start time - for airport duty, this is the same as airport duty start time
+    // For airport standby, this is the same as standby start time
     var effectiveStandbyStartTime: Date {
-        if selectedStandbyType == "Airport Duty" {
+        switch selectedStandbyType {
+        case "Airport Duty":
             return airportDutyStartDateTime
-        } else {
+        case "Airport Standby":
+            return standbyStartDateTime
+        case "Standby":
+            return standbyStartDateTime
+        case "Reserve":
+            return standbyStartDateTime
+        default:
             return standbyStartDateTime
         }
     }
@@ -140,7 +273,7 @@ class ManualCalcViewModel: ObservableObject {
     }
     
     func checkNightStandbyContact() {
-        if isStandbyEnabled && selectedStandbyType == "Standby" {
+        if isStandbyEnabled && (selectedStandbyType == "Standby" || selectedStandbyType == "Airport Standby") {
             let standbyStartLocal = TimeUtilities.getLocalTime(for: utcTimeFormatter.string(from: standbyStartDateTime), airportCode: homeBase)
             let standbyStartHour = Int(standbyStartLocal.prefix(2)) ?? 0
             
@@ -193,11 +326,21 @@ class ManualCalcViewModel: ObservableObject {
         case "B", "D":
             let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
             
-            // For airport duty, use airport duty start time for FDP calculations
-            // For all other cases, use flight report time
+            // Use the appropriate baseline time based on standby type
             let referenceDateTime: Date
-            if isStandbyEnabled && selectedStandbyType == "Airport Duty" {
-                referenceDateTime = airportDutyStartDateTime
+            if isStandbyEnabled {
+                switch selectedStandbyType {
+                case "Airport Duty":
+                    referenceDateTime = airportDutyStartDateTime
+                            case "Airport Standby":
+                referenceDateTime = reportingDateTime // Airport standby: FDP starts from report time
+                case "Standby":
+                    referenceDateTime = reportingDateTime // Home standby: FDP starts from report time
+                case "Reserve":
+                    referenceDateTime = reportingDateTime // Reserve: FDP starts from report time
+                default:
+                    referenceDateTime = reportingDateTime
+                }
             } else {
                 referenceDateTime = reportingDateTime
             }
@@ -205,6 +348,7 @@ class ManualCalcViewModel: ObservableObject {
             let timeString = utcTimeFormatter.string(from: referenceDateTime)
             let localTime = TimeUtilities.getLocalTime(for: timeString, airportCode: currentDeparture)
             let sectorsForLookup = numberOfSectors == 1 ? 2 : numberOfSectors
+            
             baseFDP = RegulatoryTableLookup.lookupFDPAcclimatised(reportTime: localTime, sectors: sectorsForLookup)
             
         case "X":
@@ -215,20 +359,7 @@ class ManualCalcViewModel: ObservableObject {
             baseFDP = 9.0
         }
         
-        // Apply Home Standby rules if applicable
-        if isStandbyEnabled && selectedStandbyType == "Standby" {
-            let standbyDuration = calculateStandbyDuration()
-            let thresholdHours = (hasInFlightRest && restFacilityType != .none) || hasSplitDuty ? 8.0 : 6.0
-            
-            if standbyDuration > thresholdHours {
-                let reduction = standbyDuration - thresholdHours
-                let reducedFDP = baseFDP - reduction
-                let minimumFDP = 9.0
-                let finalFDP = max(reducedFDP, minimumFDP)
-                return finalFDP
-            }
-        }
-        
+        // Return base FDP without standby reduction - standby reduction will be applied in calculateTotalFDP()
         return baseFDP
     }
     
@@ -254,46 +385,65 @@ class ManualCalcViewModel: ObservableObject {
     
     func calculateTotalFDP() -> Double {
         let baseFDP = calculateMaxFDP()
-        print("DEBUG: calculateTotalFDP - Base FDP: \(baseFDP)h")
         
         // Apply in-flight rest extension if applicable
         var adjustedFDP = baseFDP
         if hasInFlightRest && restFacilityType != .none {
             let inFlightRestFDP = calculateInFlightRestExtension()
             adjustedFDP = inFlightRestFDP
-            print("DEBUG: calculateTotalFDP - In-flight rest applied: \(inFlightRestFDP)h")
         }
         
         // Apply standby reduction if applicable
-        if isStandbyEnabled && selectedStandbyType == "Standby" {
-            let standbyDuration = calculateStandbyDuration()
-            let thresholdHours = (hasInFlightRest && restFacilityType != .none) || hasSplitDuty ? 8.0 : 6.0
-            
-            print("DEBUG: calculateTotalFDP - Standby enabled: \(selectedStandbyType)")
-            print("DEBUG: calculateTotalFDP - Standby duration: \(standbyDuration)h")
-            print("DEBUG: calculateTotalFDP - Threshold hours: \(thresholdHours)h")
-            
-            if standbyDuration > thresholdHours {
-                let reduction = standbyDuration - thresholdHours
-                let beforeReduction = adjustedFDP
-                adjustedFDP = adjustedFDP - reduction
+        if isStandbyEnabled {
+            if selectedStandbyType == "Standby" {
+                // Home Standby: FDP starts from report time, reduced by standby exceeding 6-8 hours
+                let standbyDuration = calculateStandbyDuration()
+                let thresholdHours = (hasInFlightRest && restFacilityType != .none) || hasSplitDuty ? 8.0 : 6.0
                 
-                print("DEBUG: calculateTotalFDP - Standby reduction applied: \(beforeReduction)h - \(reduction)h = \(adjustedFDP)h")
-                
-                // Apply minimum FDP limit
-                let minimumFDP = 9.0
-                if adjustedFDP < minimumFDP {
-                    print("DEBUG: calculateTotalFDP - Below minimum FDP, applying limit: \(adjustedFDP)h -> \(minimumFDP)h")
-                    adjustedFDP = minimumFDP
+                if standbyDuration > thresholdHours {
+                    let reduction = standbyDuration - thresholdHours
+                    adjustedFDP = adjustedFDP - reduction
                 }
-            } else {
-                print("DEBUG: calculateTotalFDP - Standby duration (\(standbyDuration)h) not above threshold (\(thresholdHours)h), no reduction applied")
+                
+            } else if selectedStandbyType == "Airport Standby" {
+                // Airport Standby: FDP starts from report time, reduced by standby exceeding 4 hours
+                let standbyDuration = calculateStandbyDuration()
+                let thresholdHours = 4.0 // Airport standby threshold is always 4 hours
+                
+                if standbyDuration > thresholdHours {
+                    let reduction = standbyDuration - thresholdHours
+                    adjustedFDP = adjustedFDP - reduction
+                }
+                
+            } else if selectedStandbyType == "Airport Duty" {
+                // Airport Duty: No FDP reduction, all time counts towards duty
+            } else if selectedStandbyType == "Reserve" {
+                // Reserve: No FDP reduction, doesn't count towards duty
             }
-        } else {
-            print("DEBUG: calculateTotalFDP - Standby not enabled or not 'Standby' type")
         }
         
-        print("DEBUG: calculateTotalFDP - Final adjusted FDP: \(adjustedFDP)h")
+        // Apply minimum FDP limit after all adjustments
+        // For home standby and airport standby cases, allow FDP to go below 9.0h as per UK CAA rules
+        let minimumFDP = 9.0
+        let isStandbyReduction = isStandbyEnabled && 
+            ((selectedStandbyType == "Standby" && calculateStandbyDuration() > ((hasInFlightRest && restFacilityType != .none) || hasSplitDuty ? 8.0 : 6.0)) ||
+             (selectedStandbyType == "Airport Standby" && calculateStandbyDuration() > 4.0))
+        
+        if adjustedFDP < minimumFDP && !isStandbyReduction {
+            adjustedFDP = minimumFDP
+        }
+        
+        // Check 16-hour total duty time rule for airport standby
+        if isStandbyEnabled && selectedStandbyType == "Airport Standby" {
+            let standbyDuration = calculateStandbyDuration()
+            let totalDutyTime = standbyDuration + adjustedFDP
+            let maxAllowedDutyTime = (hasInFlightRest && restFacilityType != .none) || hasSplitDuty ? 18.0 : 16.0
+            
+            if totalDutyTime > maxAllowedDutyTime {
+                // TODO: Add user-facing warning for 16-hour rule violation
+            }
+        }
+        
         return adjustedFDP
     }
     
@@ -305,6 +455,8 @@ class ManualCalcViewModel: ObservableObject {
         let baselineTime = getBaselineTimeForCalculations()
         let timeWithFDP = baselineTime.addingTimeInterval(totalFDP * 3600)
         let latestOffBlocks = timeWithFDP.addingTimeInterval(-estimatedBlockTime * 3600)
+        
+
         
         return latestOffBlocks
     }
@@ -333,83 +485,128 @@ class ManualCalcViewModel: ObservableObject {
     }
     
     func getBaselineTimeForCalculations() -> Date {
-        if isStandbyEnabled && selectedStandbyType == "Airport Duty" {
-            return airportDutyStartDateTime // Use airport duty start time for FDP calculations
+        let baselineTime: Date
+        
+        if isStandbyEnabled {
+            switch selectedStandbyType {
+            case "Airport Duty":
+                baselineTime = airportDutyStartDateTime // Use airport duty start time for FDP calculations
+            case "Airport Standby":
+                baselineTime = reportingDateTime // Airport standby: FDP starts from report time
+            case "Standby":
+                baselineTime = reportingDateTime // Home standby: FDP starts from report time
+            case "Reserve":
+                baselineTime = reportingDateTime // Reserve: FDP starts from report time
+            default:
+                baselineTime = reportingDateTime
+            }
         } else {
-            return reportingDateTime
+            baselineTime = reportingDateTime
         }
+        
+        return baselineTime
     }
     
     // MARK: - Time Update Functions
     func updateReportingTimeFromCustomInput() {
-        let currentDate = reportingDateTime
+        // Get the currently selected date from the date picker
+        let selectedDate = reportingDateTime
         var utcCalendar = Calendar.current
         utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
         
-        let utcComponents = utcCalendar.dateComponents([.year, .month, .day], from: currentDate)
+        // Extract date components from the selected date
+        let dateComponents = utcCalendar.dateComponents([.year, .month, .day], from: selectedDate)
+        
+        // Create new date with selected date and time components
         var newComponents = DateComponents()
-        newComponents.year = utcComponents.year
-        newComponents.month = utcComponents.month
-        newComponents.day = utcComponents.day
+        newComponents.year = dateComponents.year
+        newComponents.month = dateComponents.month
+        newComponents.day = dateComponents.day
         newComponents.hour = selectedHour
         newComponents.minute = selectedMinute
         newComponents.second = 0
         
         if let utcDate = utcCalendar.date(from: newComponents) {
             reportingDateTime = utcDate
+            clearCache() // Clear cache when reporting time changes
         }
     }
     
     func updateEstimatedBlockTimeFromCustomInput() {
         let totalHours = Double(selectedBlockTimeHour) + (Double(selectedBlockTimeMinute) / 60.0)
         estimatedBlockTime = totalHours
+        clearCache() // Clear cache when block time changes
     }
     
     func updateStandbyTimeFromCustomInput() {
-        let currentDate = standbyStartDateTime
+        // Get the currently selected date from the date picker
+        let selectedDate = standbyStartDateTime
         var utcCalendar = Calendar.current
         utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
         
-        let utcComponents = utcCalendar.dateComponents([.year, .month, .day], from: currentDate)
+        // Extract date components from the selected date
+        let dateComponents = utcCalendar.dateComponents([.year, .month, .day], from: selectedDate)
+        
+        // Create new date with selected date and time components
         var newComponents = DateComponents()
-        newComponents.year = utcComponents.year
-        newComponents.month = utcComponents.month
-        newComponents.day = utcComponents.day
+        newComponents.year = dateComponents.year
+        newComponents.month = dateComponents.month
+        newComponents.day = dateComponents.day
         newComponents.hour = selectedStandbyHour
         newComponents.minute = selectedStandbyMinute
         newComponents.second = 0
         
         if let utcDate = utcCalendar.date(from: newComponents) {
             standbyStartDateTime = utcDate
+            clearCache() // Clear cache when standby time changes
         }
     }
     
     func updateAirportDutyTimeFromCustomInput() {
-        let currentDate = airportDutyStartDateTime
+        // Get the currently selected date from the date picker
+        let selectedDate = airportDutyStartDateTime
         var utcCalendar = Calendar.current
         utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
         
-        let utcComponents = utcCalendar.dateComponents([.year, .month, .day], from: currentDate)
+        // Extract date components from the selected date
+        let dateComponents = utcCalendar.dateComponents([.year, .month, .day], from: selectedDate)
+        
+        // Create new date with selected date and time components
         var newComponents = DateComponents()
-        newComponents.year = utcComponents.year
-        newComponents.month = utcComponents.month
-        newComponents.day = utcComponents.day
+        newComponents.year = dateComponents.year
+        newComponents.month = dateComponents.month
+        newComponents.day = dateComponents.day
         newComponents.hour = selectedAirportDutyHour
         newComponents.minute = selectedAirportDutyMinute
         newComponents.second = 0
         
         if let utcDate = utcCalendar.date(from: newComponents) {
             airportDutyStartDateTime = utcDate
+            clearCache() // Clear cache when airport duty time changes
         }
     }
     
-    // Synchronize airport duty start time with standby start time when airport duty is selected
-    func synchronizeAirportDutyTime() {
-        if selectedStandbyType == "Airport Duty" {
+    // Synchronize times when standby type changes
+    func synchronizeStandbyTimes() {
+        switch selectedStandbyType {
+        case "Airport Duty":
+            // For airport duty, synchronize with standby start time
             airportDutyStartDateTime = standbyStartDateTime
             selectedAirportDutyHour = selectedStandbyHour
             selectedAirportDutyMinute = selectedStandbyMinute
+        case "Airport Standby":
+            // For airport standby, no synchronization needed - uses standby start time directly
+            break
+        case "Standby":
+            // For home standby, no synchronization needed - uses standby start time directly
+            break
+        case "Reserve":
+            // For reserve, no synchronization needed - uses standby start time directly
+            break
+        default:
+            break
         }
+        clearCache() // Clear cache when times are synchronized
     }
     
     func updateContactTimeFromCustomInput() {
@@ -449,7 +646,23 @@ class ManualCalcViewModel: ObservableObject {
         let timeString = formatter.string(from: timeWithFDP)
         
         let baselineTimeString = formatter.string(from: baselineTime)
-        let baselineLabel = isStandbyEnabled && selectedStandbyType == "Airport Duty" ? "Airport Duty Start" : "Reporting Time"
+        let baselineLabel: String
+        if isStandbyEnabled {
+            switch selectedStandbyType {
+            case "Airport Duty":
+                baselineLabel = "Airport Duty Start"
+            case "Airport Standby":
+                baselineLabel = "Standby Start"
+            case "Standby":
+                baselineLabel = "Reporting Time"
+            case "Reserve":
+                baselineLabel = "Reporting Time"
+            default:
+                baselineLabel = "Reporting Time"
+            }
+        } else {
+            baselineLabel = "Reporting Time"
+        }
         
         return "\(baselineTimeString)z (\(baselineLabel)) + \(String(format: "%.1f", totalFDP))h = \(timeString)z - \(String(format: "%.1f", estimatedBlockTime))h"
     }

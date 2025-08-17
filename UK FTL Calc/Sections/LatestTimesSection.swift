@@ -97,10 +97,10 @@ struct LatestTimesSection: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             
-                                Text("\(String(format: "%.1f", viewModel.calculateTotalFDP()))h")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.primary)
+                                Text("\(String(format: "%.1f", viewModel.cachedTotalFDP))h")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.blue)
                             }
                             
                             Image(systemName: "info.circle")
@@ -137,7 +137,7 @@ struct LatestTimesSection: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
-                                Text("\(String(format: "%.1f", viewModel.calculateTotalFDP() + viewModel.getCommandersDiscretionExtension()))h")
+                                Text("\(String(format: "%.1f", viewModel.cachedTotalFDP + viewModel.getCommandersDiscretionExtension()))h")
                                     .font(.caption)
                                     .fontWeight(.medium)
                                     .foregroundColor(.primary)
