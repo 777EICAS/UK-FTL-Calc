@@ -65,6 +65,57 @@ struct ManualCalcView: View {
                     // Latest Times Section
                     LatestTimesSection(viewModel: viewModel)
                     
+                    // Calculate Button Section
+                    VStack(spacing: 16) {
+                        // Calculate Button
+                        Button(action: {
+                            viewModel.performCalculation()
+                        }) {
+                            HStack {
+                                if viewModel.isCalculating {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "calculator")
+                                        .font(.title2)
+                                }
+                                
+                                Text(viewModel.isCalculating ? "Calculating..." : "Calculate FTL")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(viewModel.hasCalculated ? Color.green : Color.blue)
+                            )
+                        }
+                        .disabled(viewModel.isCalculating)
+                        
+                        // Results Status
+                        if viewModel.hasCalculated {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("FTL calculations completed")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
                     Spacer(minLength: 50)
                 }
                 .padding()
@@ -96,6 +147,9 @@ struct ManualCalcView: View {
             }
             .sheet(isPresented: $viewModel.showingBlockTimePicker) {
                 blockTimePickerSheet
+            }
+            .sheet(isPresented: $viewModel.showingSplitDutyOptions) {
+                splitDutyOptionsSheet
             }
             .sheet(isPresented: $viewModel.showingWithDiscretionDetails) {
                 withDiscretionDetailsSheet
@@ -147,6 +201,16 @@ struct ManualCalcView: View {
                     viewModel.isLongFlight = false
                     viewModel.additionalCrewMembers = 1
                 }
+                
+                // Initialize split duty time values
+                let breakDurationHours = Int(viewModel.splitDutyBreakDuration)
+                let breakDurationMinutes = Int((viewModel.splitDutyBreakDuration - Double(breakDurationHours)) * 60)
+                viewModel.selectedBreakDurationHour = breakDurationHours
+                viewModel.selectedBreakDurationMinute = breakDurationMinutes
+                
+                let breakBeginComponents = utcCalendar.dateComponents([.hour, .minute], from: viewModel.splitDutyBreakBegin)
+                viewModel.selectedBreakBeginHour = breakBeginComponents.hour ?? 14
+                viewModel.selectedBreakBeginMinute = breakBeginComponents.minute ?? 0
             }
         }
     }
@@ -188,6 +252,10 @@ struct ManualCalcView: View {
     
     private var blockTimePickerSheet: some View {
         BlockTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingBlockTimePicker)
+    }
+    
+    private var splitDutyOptionsSheet: some View {
+        SplitDutyOptionsSheet(viewModel: viewModel, isPresented: $viewModel.showingSplitDutyOptions)
     }
     
     private var withDiscretionDetailsSheet: some View {

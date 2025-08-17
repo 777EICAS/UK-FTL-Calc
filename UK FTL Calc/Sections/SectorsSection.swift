@@ -72,7 +72,7 @@ struct SectorsSection: View {
                                     Text(viewModel.restFacilityType.rawValue)
                                         .font(.subheadline)
                                         .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
+                                        .foregroundColor(viewModel.hasSplitDuty ? .secondary : .primary)
                                     
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text("Sectors: \(viewModel.inFlightRestSectors == 1 ? "1-2" : "3")")
@@ -93,19 +93,52 @@ struct SectorsSection: View {
                             } else {
                                 Text("No In-Flight Rest")
                                     .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(viewModel.hasSplitDuty ? .secondary : .secondary)
                             }
                             
                             Spacer()
                             
                             Image(systemName: "chevron.right")
-                                .foregroundColor(.blue)
+                                .foregroundColor(viewModel.hasSplitDuty ? .secondary : .blue)
                                 .font(.caption)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color(.systemGray5))
+                        .background(viewModel.hasSplitDuty ? Color(.systemGray4) : Color(.systemGray5))
                         .cornerRadius(12)
+                    }
+                    .disabled(viewModel.hasSplitDuty)
+                    
+                    if viewModel.hasSplitDuty {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("In-Flight Rest not allowed with Split Duty")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                    if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Split Duty not allowed with In-Flight Rest")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
                     }
                 }
                 
@@ -123,7 +156,7 @@ struct SectorsSection: View {
                     
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Duty period split by rest period")
+                            Text("Split duty (break on the ground)")
                                 .font(.subheadline)
                                 .foregroundColor(viewModel.hasInFlightRest && viewModel.restFacilityType != .none ? .secondary : .primary)
                             Text("Allows duty to be split by rest periods")
@@ -142,20 +175,31 @@ struct SectorsSection: View {
                     .background((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) ? Color(.systemGray4) : Color(.systemGray6))
                     .cornerRadius(12)
                     
-                    if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                                .font(.caption)
-                            Text("Split Duty not allowed with In-Flight Rest")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                                .fontWeight(.medium)
+                    if viewModel.hasSplitDuty && !(viewModel.hasInFlightRest && viewModel.restFacilityType != .none) {
+                        Button(action: { viewModel.showingSplitDutyOptions = true }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Configure Split Duty")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.blue)
+                                    
+                                    Text("Break: \(String(format: "%.1f", viewModel.splitDutyBreakDuration))h • \(viewModel.splitDutyAccommodationType)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.blue)
+                                    .font(.caption)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(12)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(8)
                     }
                 }
                 
@@ -175,7 +219,7 @@ struct SectorsSection: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Extended flight duty period limits")
                                 .font(.subheadline)
-                                .foregroundColor(viewModel.hasInFlightRest && viewModel.restFacilityType != .none ? .secondary : .primary)
+                                .foregroundColor((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasSplitDuty ? .secondary : .primary)
                             Text("Allows extended FDP limits")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -185,11 +229,11 @@ struct SectorsSection: View {
                         
                         Toggle("", isOn: $viewModel.hasExtendedFDP)
                             .toggleStyle(SwitchToggleStyle(tint: .green))
-                            .disabled(viewModel.hasInFlightRest && viewModel.restFacilityType != .none)
+                            .disabled((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasSplitDuty)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) ? Color(.systemGray4) : Color(.systemGray6))
+                    .background(((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasSplitDuty) ? Color(.systemGray4) : Color(.systemGray6))
                     .cornerRadius(12)
                     
                     if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
@@ -198,6 +242,22 @@ struct SectorsSection: View {
                                 .foregroundColor(.orange)
                                 .font(.caption)
                             Text("Extended FDP not allowed with In-Flight Rest")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                    if viewModel.hasSplitDuty && !(viewModel.hasInFlightRest && viewModel.restFacilityType != .none) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Extended FDP not allowed with Split Duty")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                                 .fontWeight(.medium)

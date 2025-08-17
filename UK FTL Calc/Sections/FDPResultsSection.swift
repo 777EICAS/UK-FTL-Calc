@@ -34,10 +34,17 @@ struct FDPResultsSection: View {
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                         
-                        Text("\(String(format: "%.1f", viewModel.cachedMaxFDP))h")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
+                        if viewModel.hasCalculated {
+                            Text("\(String(format: "%.1f", viewModel.cachedMaxFDP))h")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                        } else {
+                            Text("Press Calculate to see results")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .italic()
+                        }
                     }
                     
                     Spacer()
@@ -48,14 +55,21 @@ struct FDPResultsSection: View {
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                         
-                        HStack(spacing: 4) {
-                            Image(systemName: viewModel.selectedAcclimatisation == "X" ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                                .foregroundColor(viewModel.selectedAcclimatisation == "X" ? .red : (viewModel.selectedAcclimatisation == "D" ? .orange : .green))
+                        if viewModel.hasCalculated {
+                            HStack(spacing: 4) {
+                                Image(systemName: viewModel.selectedAcclimatisation == "X" ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                    .foregroundColor(viewModel.selectedAcclimatisation == "X" ? .red : (viewModel.selectedAcclimatisation == "D" ? .orange : .green))
+                                    .font(.caption)
+                                Text(viewModel.selectedAcclimatisation.isEmpty ? "Not Set" : viewModel.selectedAcclimatisation)
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(viewModel.selectedAcclimatisation == "X" ? .red : (viewModel.selectedAcclimatisation == "D" ? .orange : .green))
+                            }
+                        } else {
+                            Text("Not calculated")
                                 .font(.caption)
-                            Text(viewModel.selectedAcclimatisation.isEmpty ? "Not Set" : viewModel.selectedAcclimatisation)
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(viewModel.selectedAcclimatisation == "X" ? .red : (viewModel.selectedAcclimatisation == "D" ? .orange : .green))
+                                .foregroundColor(.secondary)
+                                .italic()
                         }
                     }
                 }
@@ -65,7 +79,7 @@ struct FDPResultsSection: View {
                 .cornerRadius(12)
                 
                 // Home Standby Rules Applied (if applicable)
-                if viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Standby" {
+                if viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Standby" && viewModel.hasCalculated {
                     let standbyDuration = viewModel.cachedStandbyDuration
                     let thresholdHours = (viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasSplitDuty ? 8.0 : 6.0
                     let totalAwakeTime = standbyDuration + viewModel.cachedMaxFDP
@@ -164,6 +178,82 @@ struct FDPResultsSection: View {
                     .cornerRadius(12)
                 }
                 
+                // Split Duty Extension (if applicable)
+                if viewModel.hasSplitDuty {
+                    let splitDutyDetails = viewModel.getSplitDutyExtensionDetails()
+                    
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Split Duty FDP")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            
+                            Text("\(String(format: "%.1f", splitDutyDetails.extension))h")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.orange)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("Accommodation")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: "bed.double.fill")
+                                    .foregroundColor(.orange)
+                                    .font(.caption)
+                                Text(viewModel.splitDutyAccommodationType)
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                    
+                    // Split Duty Details
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Split Duty Details")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.orange)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Break Duration: \(String(format: "%.1f", viewModel.splitDutyBreakDuration))h")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            if viewModel.splitDutyAccommodationType == "Accommodation" {
+                                Text("Break Begin: \(viewModel.formatTimeAsUTC(viewModel.splitDutyBreakBegin))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Text(splitDutyDetails.explanation)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.orange.opacity(0.05))
+                    .cornerRadius(12)
+                }
+                
                 // Total FDP
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -172,11 +262,21 @@ struct FDPResultsSection: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
                         
-                        let totalFDP = viewModel.cachedTotalFDP
+                        let totalFDP = viewModel.calculateMaxFDP()
                         Text("\(String(format: "%.1f", totalFDP))h")
                             .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(.blue)
+                        
+                        // Show breakdown if extensions are applied
+                        if (viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasSplitDuty {
+                            let baseFDP = viewModel.getBaseFDP()
+                            let breakdown = getFDPBreakdown(baseFDP: baseFDP)
+                            
+                            Text(breakdown)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     
                     Spacer()
@@ -208,6 +308,23 @@ struct FDPResultsSection: View {
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+    
+    // MARK: - Helper Functions
+    private func getFDPBreakdown(baseFDP: Double) -> String {
+        var breakdown = "Base: \(String(format: "%.1f", baseFDP))h"
+        
+        if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
+            let inFlightRestExtension = viewModel.cachedInFlightRestExtension - baseFDP
+            breakdown += " + In-Flight Rest: +\(String(format: "%.1f", inFlightRestExtension))h"
+        }
+        
+        if viewModel.hasSplitDuty {
+            let splitDutyExtension = viewModel.calculateSplitDutyExtension()
+            breakdown += " + Split Duty: +\(String(format: "%.1f", splitDutyExtension))h"
+        }
+        
+        return breakdown
     }
 }
 

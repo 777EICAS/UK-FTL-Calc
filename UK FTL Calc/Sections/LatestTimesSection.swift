@@ -75,7 +75,6 @@ struct LatestTimesSection: View {
                     }
                     
                     // Without Commander's Discretion
-                    let latestWithoutDiscretion = viewModel.calculateLatestOffBlocksTime(withCommandersDiscretion: false)
                     Button(action: { viewModel.showingWithoutDiscretionDetails = true }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -84,10 +83,17 @@ struct LatestTimesSection: View {
                                     .fontWeight(.medium)
                                     .foregroundColor(.secondary)
                                 
-                                Text(viewModel.formatTimeForDisplay(latestWithoutDiscretion))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.green)
+                                if viewModel.hasCalculated {
+                                    Text(viewModel.formatTimeForDisplay(viewModel.calculationResults?.latestOffBlocksTime ?? Date()))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.green)
+                                } else {
+                                    Text("Press Calculate to see results")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Spacer()
@@ -97,10 +103,17 @@ struct LatestTimesSection: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             
-                                Text("\(String(format: "%.1f", viewModel.cachedTotalFDP))h")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.blue)
+                                if viewModel.hasCalculated {
+                                    Text("\(String(format: "%.1f", viewModel.cachedTotalFDP))h")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.blue)
+                                } else {
+                                    Text("--")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Image(systemName: "info.circle")
@@ -115,7 +128,6 @@ struct LatestTimesSection: View {
                     .buttonStyle(PlainButtonStyle())
                     
                     // With Commander's Discretion
-                    let latestWithDiscretion = viewModel.calculateLatestOffBlocksTime(withCommandersDiscretion: true)
                     Button(action: { viewModel.showingWithDiscretionDetails = true }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -124,10 +136,18 @@ struct LatestTimesSection: View {
                                     .fontWeight(.medium)
                                     .foregroundColor(.secondary)
                                 
-                                Text(viewModel.formatTimeForDisplay(latestWithDiscretion))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.orange)
+                                if viewModel.hasCalculated {
+                                    let latestWithDiscretion = viewModel.calculationResults?.latestOffBlocksTime.addingTimeInterval(viewModel.getCommandersDiscretionExtension() * 3600) ?? Date()
+                                    Text(viewModel.formatTimeForDisplay(latestWithDiscretion))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.orange)
+                                } else {
+                                    Text("Press Calculate to see results")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Spacer()
@@ -137,10 +157,17 @@ struct LatestTimesSection: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 
-                                Text("\(String(format: "%.1f", viewModel.cachedTotalFDP + viewModel.getCommandersDiscretionExtension()))h")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.primary)
+                                if viewModel.hasCalculated {
+                                    Text("\(String(format: "%.1f", viewModel.cachedTotalFDP + viewModel.getCommandersDiscretionExtension()))h")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                } else {
+                                    Text("--")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Image(systemName: "info.circle")
@@ -168,7 +195,6 @@ struct LatestTimesSection: View {
                     }
                     
                     // Without Commander's Discretion
-                    let latestOnBlocksWithoutDiscretion = viewModel.calculateLatestOnBlocksTime(withCommandersDiscretion: false)
                     Button(action: { viewModel.showingOnBlocksDetails = true }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -177,10 +203,17 @@ struct LatestTimesSection: View {
                                     .fontWeight(.medium)
                                     .foregroundColor(.secondary)
                                 
-                                Text(viewModel.formatTimeForDisplay(latestOnBlocksWithoutDiscretion))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.green)
+                                if viewModel.hasCalculated {
+                                    Text(viewModel.formatTimeForDisplay(viewModel.calculationResults?.latestOnBlocksTime ?? Date()))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.green)
+                                } else {
+                                    Text("Press Calculate to see results")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Spacer()
@@ -190,10 +223,17 @@ struct LatestTimesSection: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             
-                                Text("\(String(format: "%.1f", viewModel.calculateTotalDutyTime(withCommandersDiscretion: false)))h")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.primary)
+                                if viewModel.hasCalculated {
+                                    Text("\(String(format: "%.1f", viewModel.calculationResults?.totalDutyTime ?? 0.0))h")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                } else {
+                                    Text("--")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Image(systemName: "info.circle")
@@ -208,7 +248,6 @@ struct LatestTimesSection: View {
                     .buttonStyle(PlainButtonStyle())
                     
                     // With Commander's Discretion
-                    let latestOnBlocksWithDiscretion = viewModel.calculateLatestOnBlocksTime(withCommandersDiscretion: true)
                     Button(action: { viewModel.showingOnBlocksDetails = true }) {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
@@ -217,10 +256,18 @@ struct LatestTimesSection: View {
                                     .fontWeight(.medium)
                                     .foregroundColor(.secondary)
                                 
-                                Text(viewModel.formatTimeForDisplay(latestOnBlocksWithDiscretion))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.orange)
+                                if viewModel.hasCalculated {
+                                    let latestOnBlocksWithDiscretion = viewModel.calculationResults?.latestOnBlocksTime.addingTimeInterval(viewModel.getCommandersDiscretionExtension() * 3600) ?? Date()
+                                    Text(viewModel.formatTimeForDisplay(latestOnBlocksWithDiscretion))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.orange)
+                                } else {
+                                    Text("Press Calculate to see results")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Spacer()
@@ -230,10 +277,17 @@ struct LatestTimesSection: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             
-                                Text("\(String(format: "%.1f", viewModel.calculateTotalDutyTime(withCommandersDiscretion: true)))h")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.primary)
+                                if viewModel.hasCalculated {
+                                    Text("\(String(format: "%.1f", (viewModel.calculationResults?.totalDutyTime ?? 0.0) + viewModel.getCommandersDiscretionExtension()))h")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                } else {
+                                    Text("--")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                }
                             }
                             
                             Image(systemName: "info.circle")

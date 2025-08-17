@@ -70,6 +70,26 @@ class ManualCalcViewModel: ObservableObject {
     @Published var hasSplitDuty: Bool = false {
         didSet { clearCache() }
     }
+    
+    // MARK: - Split Duty Configuration State
+    @Published var showingSplitDutyOptions = false
+    @Published var splitDutyAccommodationType: String = "Accommodation" { // "Accommodation" or "Suitable Accomm"
+        didSet { clearCache() }
+    }
+    @Published var splitDutyBreakDuration: Double = 3.0 { // Break duration in hours
+        didSet { clearCache() }
+    }
+    @Published var splitDutyBreakBegin: Date = Date() { // Break begin time
+        didSet { clearCache() }
+    }
+    @Published var selectedBreakDurationHour: Int = 3 // Track selected hour for break duration input
+    @Published var selectedBreakDurationMinute: Int = 0 // Track selected minute for break duration input
+    @Published var selectedBreakBeginHour: Int = 14 // Track selected hour for break begin time input
+    @Published var selectedBreakBeginMinute: Int = 0 // Track selected minute for break begin time input
+    @Published var showingBreakDurationPicker = false
+    @Published var showingBreakBeginPicker = false
+    
+    // MARK: - Extended FDP State
     @Published var hasExtendedFDP: Bool = false {
         didSet { clearCache() }
     }
@@ -139,6 +159,11 @@ class ManualCalcViewModel: ObservableObject {
         didSet { clearCache() }
     }
     
+    // MARK: - Calculation Button State
+    @Published var calculationResults: FTLCalculationResults?
+    @Published var isCalculating = false
+    @Published var hasCalculated = false
+    
     // MARK: - Computed Properties
     var defaultReportingLocation: String {
         return homeBase
@@ -148,66 +173,81 @@ class ManualCalcViewModel: ObservableObject {
         return homeBase
     }
     
-    // Cached calculation results to avoid excessive recalculations
-    private var _cachedMaxFDP: Double?
-    private var _cachedTotalFDP: Double?
-    private var _cachedInFlightRestExtension: Double?
-    private var _cachedStandbyDuration: Double?
-    private var _cachedAcclimatisation: String?
-    
-    // Computed properties that cache results
+    // Computed properties that use stored results
     var cachedMaxFDP: Double {
-        if let cached = _cachedMaxFDP {
-            return cached
+        if let results = calculationResults {
+            return results.maxFDP
         }
-        let result = calculateMaxFDP()
-        _cachedMaxFDP = result
-        return result
+        return 0.0 // Return 0 if no calculation has been performed
     }
     
     var cachedTotalFDP: Double {
-        if let cached = _cachedTotalFDP {
-            return cached
+        if let results = calculationResults {
+            return results.totalFDP
         }
-        let result = calculateTotalFDP()
-        _cachedTotalFDP = result
-        return result
+        return 0.0 // Return 0 if no calculation has been performed
     }
     
     var cachedInFlightRestExtension: Double {
-        if let cached = _cachedInFlightRestExtension {
-            return cached
+        if let results = calculationResults {
+            return results.inFlightRestExtension
         }
-        let result = calculateInFlightRestExtension()
-        _cachedInFlightRestExtension = result
-        return result
+        return 0.0 // Return 0 if no calculation has been performed
     }
     
     var cachedStandbyDuration: Double {
-        if let cached = _cachedStandbyDuration {
-            return cached
+        if let results = calculationResults {
+            return results.standbyDuration
         }
-        let result = calculateStandbyDuration()
-        _cachedStandbyDuration = result
-        return result
+        return 0.0 // Return 0 if no calculation has been performed
     }
     
     var cachedAcclimatisation: String {
-        if let cached = _cachedAcclimatisation {
-            return cached
+        if let results = calculationResults {
+            return results.acclimatisation
         }
-        let result = calculateAcclimatisation()
-        _cachedAcclimatisation = result
-        return result
+        return "" // Return empty string if no calculation has been performed
+    }
+    
+    var cachedSplitDutyExtension: Double {
+        if let results = calculationResults {
+            return results.splitDutyExtension
+        }
+        return 0.0 // Return 0 if no calculation has been performed
     }
     
     // Method to clear cache when values change
     func clearCache() {
-        _cachedMaxFDP = nil
-        _cachedTotalFDP = nil
-        _cachedInFlightRestExtension = nil
-        _cachedStandbyDuration = nil
-        _cachedAcclimatisation = nil
+        calculationResults = nil
+        hasCalculated = false
+    }
+    
+    // Method to apply split duty settings and force calculation update
+    func applySplitDutySettings() {
+        print("DEBUG: applySplitDutySettings - Starting")
+        print("DEBUG: applySplitDutySettings - Current values:")
+        print("DEBUG: applySplitDutySettings - hasSplitDuty: \(hasSplitDuty)")
+        print("DEBUG: applySplitDutySettings - splitDutyAccommodationType: '\(splitDutyAccommodationType)'")
+        print("DEBUG: applySplitDutySettings - splitDutyBreakDuration: \(splitDutyBreakDuration)")
+        print("DEBUG: applySplitDutySettings - splitDutyBreakBegin: \(splitDutyBreakBegin)")
+        print("DEBUG: applySplitDutySettings - selectedBreakDurationHour: \(selectedBreakDurationHour)")
+        print("DEBUG: applySplitDutySettings - selectedBreakDurationMinute: \(selectedBreakDurationMinute)")
+        print("DEBUG: applySplitDutySettings - selectedBreakBeginHour: \(selectedBreakBeginHour)")
+        print("DEBUG: applySplitDutySettings - selectedBreakBeginMinute: \(selectedBreakBeginMinute)")
+        
+        // Update the actual split duty properties from the selected values
+        updateBreakDurationFromCustomInput()
+        updateBreakBeginTimeFromCustomInput()
+        
+        print("DEBUG: applySplitDutySettings - After updating properties:")
+        print("DEBUG: applySplitDutySettings - splitDutyBreakDuration: \(splitDutyBreakDuration)")
+        print("DEBUG: applySplitDutySettings - splitDutyBreakBegin: \(splitDutyBreakBegin)")
+        
+        clearCache()
+        // Force UI update by triggering objectWillChange
+        objectWillChange.send()
+        
+        print("DEBUG: applySplitDutySettings - Cache cleared and UI update triggered")
     }
     
     // Effective standby start time - for airport duty, this is the same as airport duty start time
@@ -405,7 +445,61 @@ class ManualCalcViewModel: ObservableObject {
         
         print("DEBUG: calculateMaxFDP - Final base FDP: \(baseFDP)h")
         
-        // Return base FDP without standby reduction - standby reduction will be applied in calculateTotalFDP()
+        // Apply split duty extension if enabled
+        var finalFDP = baseFDP
+        if hasSplitDuty {
+            let splitDutyExtension = calculateSplitDutyExtension()
+            finalFDP = baseFDP + splitDutyExtension
+            print("DEBUG: calculateMaxFDP - Split duty extension: +\(splitDutyExtension)h")
+            print("DEBUG: calculateMaxFDP - Final FDP with split duty: \(finalFDP)h")
+        }
+        
+        // Return final FDP (base + split duty extension if applicable)
+        // Standby reduction will be applied in calculateTotalFDP()
+        return finalFDP
+    }
+    
+    // Helper method to get base FDP without extensions (for breakdown display)
+    func getBaseFDP() -> Double {
+        let acclimatisationResult = calculateAcclimatisation()
+        
+        let baseFDP: Double
+        switch acclimatisationResult {
+        case "B", "D":
+            let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
+            
+            // Use the appropriate baseline time based on standby type
+            let referenceDateTime: Date
+            if isStandbyEnabled {
+                switch selectedStandbyType {
+                case "Airport Duty":
+                    referenceDateTime = airportDutyStartDateTime
+                case "Airport Standby":
+                    referenceDateTime = reportingDateTime
+                case "Standby":
+                    referenceDateTime = reportingDateTime
+                case "Reserve":
+                    referenceDateTime = reportingDateTime
+                default:
+                    referenceDateTime = reportingDateTime
+                }
+            } else {
+                referenceDateTime = reportingDateTime
+            }
+            
+            let timeString = utcTimeFormatter.string(from: referenceDateTime)
+            let localTime = TimeUtilities.getLocalTime(for: timeString, airportCode: currentDeparture)
+            let sectorsForLookup = numberOfSectors == 1 ? 2 : numberOfSectors
+            
+            baseFDP = RegulatoryTableLookup.lookupFDPAcclimatised(reportTime: localTime, sectors: sectorsForLookup)
+            
+        case "X":
+            baseFDP = RegulatoryTableLookup.lookupFDPUnknownAcclimatised(sectors: numberOfSectors)
+            
+        default:
+            baseFDP = 9.0
+        }
+        
         return baseFDP
     }
     
@@ -429,6 +523,124 @@ class ManualCalcViewModel: ObservableObject {
         )
     }
     
+    func calculateSplitDutyExtension() -> Double {
+        guard hasSplitDuty else { 
+            print("DEBUG: calculateSplitDutyExtension - hasSplitDuty is false, returning 0.0")
+            return 0.0 
+        }
+        
+        print("DEBUG: calculateSplitDutyExtension - hasSplitDuty is true")
+        print("DEBUG: calculateSplitDutyExtension - splitDutyBreakDuration: \(splitDutyBreakDuration)")
+        print("DEBUG: calculateSplitDutyExtension - splitDutyAccommodationType: '\(splitDutyAccommodationType)'")
+        print("DEBUG: calculateSplitDutyExtension - splitDutyBreakBegin: \(splitDutyBreakBegin)")
+        
+        // Base extension: 50% of break duration
+        let baseExtension = splitDutyBreakDuration * 0.5
+        print("DEBUG: calculateSplitDutyExtension - baseExtension: \(baseExtension)")
+        
+        if splitDutyAccommodationType == "Suitable Accomm" {
+            // Suitable accommodation: full 50% extension
+            print("DEBUG: calculateSplitDutyExtension - Using Suitable Accomm, returning: \(baseExtension)")
+            return baseExtension
+        } else {
+            // Accommodation: apply restrictions
+            var effectiveBreakTime = splitDutyBreakDuration
+            
+            // 6-hour rule: any time over 6 hours doesn't count
+            if effectiveBreakTime > 6.0 {
+                effectiveBreakTime = 6.0
+            }
+            
+            // WOCL encroachment check (02:00-05:59 local time where user is acclimatised)
+            let woclReduction = calculateWOCLEncroachment()
+            effectiveBreakTime = max(0.0, effectiveBreakTime - woclReduction)
+            
+            let finalExtension = effectiveBreakTime * 0.5
+            print("DEBUG: calculateSplitDutyExtension - Using Accommodation, effectiveBreakTime: \(effectiveBreakTime), woclReduction: \(woclReduction), finalExtension: \(finalExtension)")
+            
+            // Return 50% of effective break time
+            return finalExtension
+        }
+    }
+    
+    private func calculateWOCLEncroachment() -> Double {
+        guard splitDutyAccommodationType == "Accommodation" else { return 0.0 }
+        
+        // Get the local time at the user's acclimatised location
+        let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
+        let breakBeginTimeString = utcTimeFormatter.string(from: splitDutyBreakBegin)
+        let localBreakBeginTime = TimeUtilities.getLocalTime(for: breakBeginTimeString, airportCode: currentDeparture)
+        
+        // Parse local time to get hour
+        let hourString = String(localBreakBeginTime.prefix(2))
+        let breakBeginHour = Int(hourString) ?? 0
+        
+        // Calculate break end time
+        let breakEndHour = (breakBeginHour + Int(splitDutyBreakDuration)) % 24
+        
+        var woclEncroachment = 0.0
+        
+        // Check if break starts before WOCL (02:00-05:59)
+        if breakBeginHour < 2 {
+            // Break starts before WOCL, calculate encroachment
+            let encroachmentStart = 2
+            let encroachmentEnd = min(6, breakEndHour)
+            if encroachmentEnd > encroachmentStart {
+                woclEncroachment += Double(encroachmentEnd - encroachmentStart)
+            }
+        } else if breakBeginHour < 6 {
+            // Break starts during WOCL
+            let encroachmentStart = breakBeginHour
+            let encroachmentEnd = min(6, breakEndHour)
+            if encroachmentEnd > encroachmentStart {
+                woclEncroachment += Double(encroachmentEnd - encroachmentStart)
+            }
+        }
+        
+        // Check if break extends past WOCL into next day
+        if breakEndHour > breakBeginHour && breakEndHour > 6 {
+            // Break extends past WOCL, check if it goes into next day's WOCL
+            let nextDayWOCLStart = 2
+            let nextDayWOCLEnd = min(6, breakEndHour)
+            if nextDayWOCLEnd > nextDayWOCLStart {
+                woclEncroachment += Double(nextDayWOCLEnd - nextDayWOCLStart)
+            }
+        }
+        
+        return woclEncroachment
+    }
+    
+    func getSplitDutyExtensionDetails() -> (extension: Double, explanation: String) {
+        guard hasSplitDuty else { return (0.0, "Split duty not enabled") }
+        
+        let baseExtension = splitDutyBreakDuration * 0.5
+        let woclReduction = calculateWOCLEncroachment()
+        
+        if splitDutyAccommodationType == "Suitable Accomm" {
+            return (baseExtension, "Suitable accommodation: full 50% extension (\(String(format: "%.1f", baseExtension))h)")
+        } else {
+            var effectiveBreakTime = splitDutyBreakDuration
+            var explanation = "Accommodation: "
+            
+            // 6-hour rule
+            if effectiveBreakTime > 6.0 {
+                let overLimit = effectiveBreakTime - 6.0
+                explanation += "6h limit applied (exceeded by \(String(format: "%.1f", overLimit))h). "
+                effectiveBreakTime = 6.0
+            }
+            
+            // WOCL encroachment
+            if woclReduction > 0 {
+                explanation += "WOCL encroachment: \(String(format: "%.1f", woclReduction))h excluded. "
+            }
+            
+            let finalExtension = effectiveBreakTime * 0.5
+            explanation += "Final extension: \(String(format: "%.1f", finalExtension))h (50% of \(String(format: "%.1f", effectiveBreakTime))h effective break time)"
+            
+            return (finalExtension, explanation)
+        }
+    }
+    
     func calculateTotalFDP() -> Double {
         let baseFDP = calculateMaxFDP()
         
@@ -438,6 +650,9 @@ class ManualCalcViewModel: ObservableObject {
             let inFlightRestFDP = calculateInFlightRestExtension()
             adjustedFDP = inFlightRestFDP
         }
+        
+        // Split duty extension is now included in calculateMaxFDP()
+        // No need to add it again here
         
         // Apply standby reduction if applicable
         if isStandbyEnabled {
@@ -660,6 +875,37 @@ class ManualCalcViewModel: ObservableObject {
         // This is stored as local time to home base
     }
     
+    // MARK: - Split Duty Time Update Functions
+    func updateBreakDurationFromCustomInput() {
+        let totalHours = Double(selectedBreakDurationHour) + (Double(selectedBreakDurationMinute) / 60.0)
+        splitDutyBreakDuration = totalHours
+        clearCache() // Clear cache when break duration changes
+    }
+    
+    func updateBreakBeginTimeFromCustomInput() {
+        // Get the currently selected date from the date picker
+        let selectedDate = splitDutyBreakBegin
+        var utcCalendar = Calendar.current
+        utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
+        
+        // Extract date components from the selected date
+        let dateComponents = utcCalendar.dateComponents([.year, .month, .day], from: selectedDate)
+        
+        // Create new date with selected date and time components
+        var newComponents = DateComponents()
+        newComponents.year = dateComponents.year
+        newComponents.month = dateComponents.month
+        newComponents.day = dateComponents.day
+        newComponents.hour = selectedBreakBeginHour
+        newComponents.minute = selectedBreakBeginMinute
+        newComponents.second = 0
+        
+        if let utcDate = utcCalendar.date(from: newComponents) {
+            splitDutyBreakBegin = utcDate
+            clearCache() // Clear cache when break begin time changes
+        }
+    }
+    
     // MARK: - Formatting Functions
     func formatTimeForDisplay(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -719,5 +965,53 @@ class ManualCalcViewModel: ObservableObject {
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date) + "z"
     }
+    
+    // MARK: - Calculate Button Method
+    func performCalculation() {
+        isCalculating = true
+        hasCalculated = true
+        
+        // Run all calculations once using existing logic
+        let maxFDP = calculateMaxFDP()
+        let totalFDP = calculateTotalFDP()
+        let inFlightRestExtension = calculateInFlightRestExtension()
+        let splitDutyExtension = calculateSplitDutyExtension()
+        let standbyDuration = calculateStandbyDuration()
+        let acclimatisation = calculateAcclimatisation()
+        let latestOffBlocksTime = calculateLatestOffBlocksTime(withCommandersDiscretion: false)
+        let latestOnBlocksTime = calculateLatestOnBlocksTime(withCommandersDiscretion: false)
+        let totalDutyTime = calculateTotalDutyTime(withCommandersDiscretion: false)
+        let calculationBreakdown = formatCalculationBreakdown(withCommandersDiscretion: false)
+        
+        // Store results
+        calculationResults = FTLCalculationResults(
+            maxFDP: maxFDP,
+            totalFDP: totalFDP,
+            inFlightRestExtension: inFlightRestExtension,
+            splitDutyExtension: splitDutyExtension,
+            standbyDuration: standbyDuration,
+            acclimatisation: acclimatisation,
+            latestOffBlocksTime: latestOffBlocksTime,
+            latestOnBlocksTime: latestOnBlocksTime,
+            totalDutyTime: totalDutyTime,
+            calculationBreakdown: calculationBreakdown
+        )
+        
+        isCalculating = false
+    }
+}
+
+// MARK: - FTL Calculation Results
+struct FTLCalculationResults {
+    let maxFDP: Double
+    let totalFDP: Double
+    let inFlightRestExtension: Double
+    let splitDutyExtension: Double
+    let standbyDuration: Double
+    let acclimatisation: String
+    let latestOffBlocksTime: Date
+    let latestOnBlocksTime: Date
+    let totalDutyTime: Double
+    let calculationBreakdown: String
 }
 
