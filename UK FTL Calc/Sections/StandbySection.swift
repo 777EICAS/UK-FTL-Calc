@@ -47,6 +47,11 @@ struct StandbySection: View {
                                 viewModel.showingStandbyOptions = true
                             }
                         }
+                        .onChange(of: viewModel.selectedStandbyType) { _, newValue in
+                            if newValue == "Airport Duty" {
+                                viewModel.synchronizeAirportDutyTime()
+                            }
+                        }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -79,7 +84,7 @@ struct StandbySection: View {
                     
                     // Night Standby Status (if applicable)
                     if viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Standby" {
-                        let standbyStartLocal = TimeUtilities.getLocalTime(for: viewModel.utcTimeFormatter.string(from: viewModel.standbyStartDateTime), airportCode: viewModel.homeBase)
+                        let standbyStartLocal = TimeUtilities.getLocalTime(for: viewModel.utcTimeFormatter.string(from: viewModel.effectiveStandbyStartTime), airportCode: viewModel.homeBase)
                         let standbyStartHour = Int(standbyStartLocal.prefix(2)) ?? 0
                         let isNightStandby = (standbyStartHour >= 23 || standbyStartHour < 7)
                         
@@ -161,42 +166,85 @@ struct StandbySection: View {
                         }
                     }
                     
-                    // Standby Start Date/Time Selection
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "calendar.badge.clock")
-                                .foregroundColor(.orange)
-                                .font(.caption)
-                            Text("Standby Start Date & Time")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Button(action: { viewModel.showingDateTimePicker = true }) {
+                    // Standby Start Date/Time Selection (only show when NOT Airport Duty)
+                    if viewModel.selectedStandbyType != "Airport Duty" {
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Date: \(viewModel.standbyStartDateTime, formatter: viewModel.dateFormatter)")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                    
-                                    Text("Time: \(viewModel.formatTimeAsUTC(viewModel.standbyStartDateTime))")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
+                                Image(systemName: "calendar.badge.clock")
                                     .foregroundColor(.orange)
                                     .font(.caption)
+                                Text("Standby Start Date & Time")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.secondary)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(Color(.systemGray5))
-                            .cornerRadius(12)
+                            
+                            Button(action: { viewModel.showingDateTimePicker = true }) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Date: \(viewModel.standbyStartDateTime, formatter: viewModel.dateFormatter)")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                        
+                                        Text("Time: \(viewModel.formatTimeAsUTC(viewModel.standbyStartDateTime))")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.orange)
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(12)
+                            }
+                        }
+                    }
+                    
+                    // Airport Duty Start Date/Time Selection (only show when Airport Duty is selected)
+                    if viewModel.selectedStandbyType == "Airport Duty" {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "airplane.departure")
+                                    .foregroundColor(.green)
+                                    .font(.caption)
+                                Text("Airport Duty Start Date & Time")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Button(action: { viewModel.showingAirportDutyDateTimePicker = true }) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Date: \(viewModel.airportDutyStartDateTime, formatter: viewModel.dateFormatter)")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                        
+                                        Text("Time: \(viewModel.formatTimeAsUTC(viewModel.airportDutyStartDateTime))")
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.green)
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(12)
+                            }
                         }
                     }
                 }

@@ -79,6 +79,9 @@ struct ManualCalcView: View {
             .sheet(isPresented: $viewModel.showingDateTimePicker) {
                 dateTimePickerSheet
             }
+            .sheet(isPresented: $viewModel.showingAirportDutyDateTimePicker) {
+                airportDutyDateTimePickerSheet
+            }
             .sheet(isPresented: $viewModel.showingReportingLocationPicker) {
                 reportingLocationPickerSheet
             }
@@ -131,6 +134,12 @@ struct ManualCalcView: View {
                 viewModel.selectedStandbyHour = standbyComponents.hour ?? 9
                 viewModel.selectedStandbyMinute = standbyComponents.minute ?? 0
                 
+                // Initialize selected hour and minute for airport duty start time picker
+                // For airport duty, this should start as the same time as standby start time
+                let airportDutyComponents = utcCalendar.dateComponents([.hour, .minute], from: viewModel.standbyStartDateTime)
+                viewModel.selectedAirportDutyHour = airportDutyComponents.hour ?? 9
+                viewModel.selectedAirportDutyMinute = airportDutyComponents.minute ?? 0
+                
                 // Initialize in-flight rest configuration
                 if viewModel.hasInFlightRest && viewModel.restFacilityType == .none {
                     viewModel.hasInFlightRest = false
@@ -154,7 +163,11 @@ struct ManualCalcView: View {
     }
     
     private var dateTimePickerSheet: some View {
-        DateTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingDateTimePicker, title: "Select Standby Start Date & Time", isStandbyTime: true)
+        DateTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingDateTimePicker, title: "Select Standby Start Date & Time", isStandbyTime: true, isAirportDutyTime: false)
+    }
+    
+    private var airportDutyDateTimePickerSheet: some View {
+        DateTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingAirportDutyDateTimePicker, title: "Select Airport Duty Start Date & Time", isStandbyTime: false, isAirportDutyTime: true)
     }
     
     private var reportingLocationPickerSheet: some View {

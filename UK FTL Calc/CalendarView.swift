@@ -9,6 +9,18 @@ enum DeleteAction {
 struct CalendarView: View {
     @StateObject private var viewModel = FTLViewModel()
     @State private var selectedDate = Date()
+    
+    // Initialize with April 2025 since that's when the XML flights are
+    init() {
+        let calendar = Calendar.current
+        var components = DateComponents()
+        components.year = 2025
+        components.month = 4
+        components.day = 1
+        if let april2025 = calendar.date(from: components) {
+            _selectedDate = State(initialValue: april2025)
+        }
+    }
 
     @State private var showingFileUpload = false
     @State private var flights: [FlightRecord] = []
@@ -21,6 +33,13 @@ struct CalendarView: View {
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
+        return formatter
+    }()
+    
+    // Additional formatter for ISO dates (yyyy-MM-dd) from XML files
+    private let isoDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
     
@@ -141,6 +160,12 @@ struct CalendarView: View {
                             ) {
                                 selectedDate = date
                             }
+                            .onAppear {
+                                let flightsForThisDate = flightsForDate(date)
+                                if let flights = flightsForThisDate, !flights.isEmpty {
+                                    print("CalendarView: Day \(date) has \(flights.count) flights: \(flights.map { $0.flightNumber })")
+                                }
+                            }
                         }
                     }
                 }
@@ -191,8 +216,24 @@ struct CalendarView: View {
                 FileUploadView { selectedFlights, allFlights in
                     // Add the parsed flights to the calendar, preventing duplicates
                     print("CalendarView: Importing \(selectedFlights.count) selected flights from \(allFlights.count) total flights")
+                    print("CalendarView: Sample flight dates: \(selectedFlights.prefix(3).map { $0.date })")
                     self.addFlightsWithoutDuplicates(selectedFlights)
                     print("CalendarView: Total flights after PDF import: \(self.flights.count)")
+                    print("CalendarView: All flight dates: \(self.flights.map { $0.date })")
+                    
+                    // Debug: Check if flights are being found for specific dates
+                    if let sampleFlight = selectedFlights.first {
+                        print("CalendarView: Checking if sample flight \(sampleFlight.flightNumber) on \(sampleFlight.date) can be found")
+                        if let flightDate = self.isoDateFormatter.date(from: sampleFlight.date) {
+                            print("CalendarView: Sample flight date parsed as: \(flightDate)")
+                            let sampleDate = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month, .day], from: flightDate)) ?? flightDate
+                            if let foundFlights = self.flightsForDate(sampleDate) {
+                                print("CalendarView: Found \(foundFlights.count) flights for sample date \(sampleDate)")
+                            } else {
+                                print("CalendarView: No flights found for sample date \(sampleDate)")
+                            }
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showingDeleteMenu) {
@@ -213,6 +254,26 @@ struct CalendarView: View {
                      "Are you sure you want to delete all flights for this month? This action cannot be undone." :
                      "Are you sure you want to remove duplicate flights? This action cannot be undone.")
             }
+            .onAppear {
+                print("CalendarView: Appeared with \(flights.count) flights")
+                print("CalendarView: Current selected date: \(selectedDate)")
+                print("CalendarView: Flight dates: \(flights.map { $0.date })")
+                
+                // Debug: Check if any flights can be found for the current month
+                let currentMonth = calendar.component(.month, from: selectedDate)
+                let currentYear = calendar.component(.year, from: selectedDate)
+                print("CalendarView: Looking for flights in month \(currentMonth)/\(currentYear)")
+                
+                for flight in flights {
+                    if let flightDate = isoDateFormatter.date(from: flight.date) {
+                        let flightMonth = calendar.component(.month, from: flightDate)
+                        let flightYear = calendar.component(.year, from: flightDate)
+                        if flightMonth == currentMonth && flightYear == currentYear {
+                            print("CalendarView: Flight \(flight.flightNumber) is in current month: \(flight.date)")
+                        }
+                    }
+                }
+            }
 
         }
     }
@@ -222,7 +283,9 @@ struct CalendarView: View {
     private var monthYearString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: selectedDate)
+        let result = formatter.string(from: selectedDate)
+        print("CalendarView: Displaying month: \(result)")
+        return result
     }
     
     private var daysInMonth: [Date] {
@@ -239,6 +302,9 @@ struct CalendarView: View {
             }
         }
         
+        print("CalendarView: Generated \(days.count) days for month starting \(startOfMonth)")
+        print("CalendarView: First few days: \(days.prefix(5).map { Calendar.current.component(.day, from: $0) })")
+        
         return days
     }
     
@@ -247,12 +313,14 @@ struct CalendarView: View {
     private func previousMonth() {
         if let newDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) {
             selectedDate = newDate
+            print("CalendarView: Navigated to previous month: \(newDate)")
         }
     }
     
     private func nextMonth() {
         if let newDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) {
             selectedDate = newDate
+            print("CalendarView: Navigated to next month: \(newDate)")
         }
     }
     
@@ -264,9 +332,23 @@ struct CalendarView: View {
     
     private func flightsForDate(_ date: Date) -> [FlightRecord]? {
         let filteredFlights = flights.filter { flight in
-            if let flightDate = dateFormatter.date(from: flight.date) {
-                return calendar.isDate(flightDate, inSameDayAs: date)
+            // Try parsing with ISO date format first (for XML files)
+            if let flightDate = isoDateFormatter.date(from: flight.date) {
+                let isMatch = calendar.isDate(flightDate, inSameDayAs: date)
+                if isMatch {
+                    print("CalendarView: Found flight \(flight.flightNumber) on \(flight.date) (ISO parsed: \(flightDate)) for calendar date \(date)")
+                }
+                return isMatch
             }
+            // Fallback to short date format (for PDF files)
+            if let flightDate = dateFormatter.date(from: flight.date) {
+                let isMatch = calendar.isDate(flightDate, inSameDayAs: date)
+                if isMatch {
+                    print("CalendarView: Found flight \(flight.flightNumber) on \(flight.date) (short parsed: \(flightDate)) for calendar date \(date)")
+                }
+                return isMatch
+            }
+            print("CalendarView: Could not parse flight date: \(flight.date) for flight \(flight.flightNumber)")
             return false
         }
         if !filteredFlights.isEmpty {
@@ -278,6 +360,8 @@ struct CalendarView: View {
 
     
     private func addFlightsWithoutDuplicates(_ newFlights: [FlightRecord]) {
+        print("CalendarView: Adding \(newFlights.count) new flights to existing \(flights.count) flights")
+        
         var existingFlightKeys = Set<String>()
         
         // Create keys for existing flights
@@ -292,10 +376,13 @@ struct CalendarView: View {
             if !existingFlightKeys.contains(key) {
                 flights.append(flight)
                 existingFlightKeys.insert(key)
+                print("CalendarView: Added flight: \(flight.flightNumber) (\(flight.departure) → \(flight.arrival)) on \(flight.date)")
             } else {
                 print("CalendarView: Skipping duplicate flight: \(flight.flightNumber) (\(flight.departure) → \(flight.arrival)) on \(flight.date)")
             }
         }
+        
+        print("CalendarView: Total flights after adding: \(flights.count)")
     }
     
     private func performDeleteAction() {
@@ -337,6 +424,13 @@ struct CalendarView: View {
         let currentYear = calendar.component(.year, from: selectedDate)
         
         let flightsToRemove = flights.filter { flight in
+            // Try parsing with ISO date format first (for XML files)
+            if let flightDate = isoDateFormatter.date(from: flight.date) {
+                let flightMonth = calendar.component(.month, from: flightDate)
+                let flightYear = calendar.component(.year, from: flightDate)
+                return flightMonth == currentMonth && flightYear == currentYear
+            }
+            // Fallback to short date format (for PDF files)
             if let flightDate = dateFormatter.date(from: flight.date) {
                 let flightMonth = calendar.component(.month, from: flightDate)
                 let flightYear = calendar.component(.year, from: flightDate)
@@ -489,6 +583,13 @@ struct IndividualFlightDeleteView: View {
         return formatter
     }()
     
+    // Additional formatter for ISO dates (yyyy-MM-dd) from XML files
+    private let isoDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -554,7 +655,7 @@ struct IndividualFlightDeleteView: View {
                                                 Text("Date")
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
-                                                Text(dateFormatter.string(from: dateFormatter.date(from: flight.date) ?? Date()))
+                                                Text(formatFlightDate(flight.date))
                                                     .font(.subheadline)
                                                     .fontWeight(.medium)
                                             }
@@ -597,5 +698,18 @@ struct IndividualFlightDeleteView: View {
                 }
             }
         }
+    }
+    
+    // Helper function to format flight dates
+    private func formatFlightDate(_ dateString: String) -> String {
+        // Try parsing with ISO date format first (for XML files)
+        if let flightDate = isoDateFormatter.date(from: dateString) {
+            return dateFormatter.string(from: flightDate)
+        }
+        // Fallback to short date format (for PDF files)
+        if let flightDate = dateFormatter.date(from: dateString) {
+            return dateFormatter.string(from: flightDate)
+        }
+        return dateString // Fallback to raw date string
     }
 } 

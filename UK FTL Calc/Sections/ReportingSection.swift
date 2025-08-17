@@ -26,91 +26,95 @@ struct ReportingSection: View {
             }
             
             VStack(spacing: 16) {
-                // Reporting Location (always show)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "mappin.circle")
-                            .foregroundColor(.blue)
-                            .font(.caption)
-                        Text("Reporting Location")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button(action: { viewModel.showingReportingLocationPicker = true }) {
+                // Reporting Location (hide when airport duty is selected)
+                if !(viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty") {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            let currentReportingLocation = viewModel.selectedReportingLocation.isEmpty ? viewModel.defaultReportingLocation : viewModel.selectedReportingLocation
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(currentReportingLocation)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
-                                
-                                if let airport = AirportsAndAirlines.airports.first(where: { $0.0 == currentReportingLocation }) {
-                                    Text(airport.1)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
+                            Image(systemName: "mappin.circle")
                                 .foregroundColor(.blue)
                                 .font(.caption)
+                            Text("Reporting Location")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color(.systemGray5))
-                        .cornerRadius(12)
+                        
+                        Button(action: { viewModel.showingReportingLocationPicker = true }) {
+                            HStack {
+                                let currentReportingLocation = viewModel.selectedReportingLocation.isEmpty ? viewModel.defaultReportingLocation : viewModel.selectedReportingLocation
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(currentReportingLocation)
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    
+                                    if let airport = AirportsAndAirlines.airports.first(where: { $0.0 == currentReportingLocation }) {
+                                        Text(airport.1)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.blue)
+                                    .font(.caption)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color(.systemGray5))
+                            .cornerRadius(12)
+                        }
                     }
                 }
                 
-                // Reporting Date/Time (always show)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "calendar.badge.clock")
-                            .foregroundColor(.orange)
-                            .font(.caption)
-                        Text("Reporting Date & Time")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // Helpful instruction
-                    Text("Enter time in UTC (Zulu time)")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 4)
-                    
-                    Button(action: { viewModel.showingReportingDateTimePicker = true }) {
+                // Reporting Date/Time (hide when airport duty is selected)
+                if !(viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty") {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Date: \(viewModel.reportingDateTime, formatter: viewModel.dateFormatter)")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
-                                
-                                // Always show UTC time
-                                Text("Time: \(viewModel.formatTimeAsUTC(viewModel.reportingDateTime))")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.primary)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
+                            Image(systemName: "calendar.badge.clock")
                                 .foregroundColor(.orange)
                                 .font(.caption)
+                            Text("Reporting Date & Time")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color(.systemGray5))
-                        .cornerRadius(12)
+                        
+                        // Helpful instruction
+                        Text("Enter time in UTC (Zulu time)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 4)
+                        
+                        Button(action: { viewModel.showingReportingDateTimePicker = true }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Date: \(viewModel.reportingDateTime, formatter: viewModel.dateFormatter)")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    
+                                    // Always show UTC time
+                                    Text("Time: \(viewModel.formatTimeAsUTC(viewModel.reportingDateTime))")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.orange)
+                                    .font(.caption)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color(.systemGray5))
+                            .cornerRadius(12)
+                        }
                     }
                 }
                 

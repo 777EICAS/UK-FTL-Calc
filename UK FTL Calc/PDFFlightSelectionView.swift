@@ -2,12 +2,54 @@ import SwiftUI
 
 struct PDFFlightSelectionView: View {
     let flights: [FlightRecord]
-    let onFlightSelected: (FlightRecord) -> Void
+    let onFlightsSelected: ([FlightRecord]) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedFlights: Set<UUID> = []
     
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
+                // Header
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Select Flights")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                            Text("Choose which flights to add to your calendar")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                    
+                    // Selection Summary
+                    HStack {
+                        Text("\(selectedFlights.count) of \(flights.count) flights selected")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        // Select All/None buttons
+                        HStack(spacing: 12) {
+                            Button("Select All") {
+                                selectedFlights = Set(flights.map { $0.id })
+                            }
+                            .disabled(selectedFlights.count == flights.count)
+                            
+                            Button("Clear All") {
+                                selectedFlights.removeAll()
+                            }
+                            .disabled(selectedFlights.isEmpty)
+                        }
+                        .font(.caption)
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                
                 if flights.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
@@ -18,31 +60,57 @@ struct PDFFlightSelectionView: View {
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        Text("No flight records were found in the uploaded PDF. Please check the file format and try again.")
+                        Text("No flight records were found in the uploaded file. Please check the file format and try again.")
                             .multilineTextAlignment(.center)
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
                     }
                     .padding()
                 } else {
-                    List {
-                        ForEach(flights, id: \.id) { flight in
-                            PDFFlightSelectionRow(flight: flight) {
-                                onFlightSelected(flight)
-                                dismiss()
+                    // Flight Selection List
+                    ScrollView {
+                        LazyVStack(spacing: 8) {
+                            ForEach(flights, id: \.id) { flight in
+                                PDFFlightSelectionRow(
+                                    flight: flight,
+                                    isSelected: selectedFlights.contains(flight.id),
+                                    onToggle: {
+                                        if selectedFlights.contains(flight.id) {
+                                            selectedFlights.remove(flight.id)
+                                        } else {
+                                            selectedFlights.insert(flight.id)
+                                        }
+                                    }
+                                )
                             }
                         }
+                        .padding()
                     }
+                    .background(Color(.systemGroupedBackground))
                 }
             }
-            .navigationTitle("Select Flight")
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Select Flights")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Import Selected") {
+                        let selectedFlightRecords = flights.filter { selectedFlights.contains($0.id) }
+                        onFlightsSelected(selectedFlightRecords)
+                        dismiss()
+                    }
+                    .disabled(selectedFlights.isEmpty)
+                }
+            }
+            .onAppear {
+                // Auto-select all flights by default
+                selectedFlights = Set(flights.map { $0.id })
             }
         }
     }
@@ -50,58 +118,74 @@ struct PDFFlightSelectionView: View {
 
 struct PDFFlightSelectionRow: View {
     let flight: FlightRecord
-    let onSelect: () -> Void
+    let isSelected: Bool
+    let onToggle: () -> Void
     
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("\(flight.flightNumber)")
-                        .font(.headline)
-                        .fontWeight(.semibold)
+        Button(action: onToggle) {
+            HStack(spacing: 12) {
+                // Selection Checkbox
+                ZStack {
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(isSelected ? Color.blue : Color.gray, lineWidth: 2)
+                        .frame(width: 20, height: 20)
                     
-                    Spacer()
-                    
-                    Text(flight.date)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                    }
                 }
                 
-                HStack {
-                    Text(flight.departure)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                // Flight Information
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("\(flight.departure) → \(flight.arrival)")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Text(flight.takeoffTime)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Image(systemName: "arrow.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Text("Flight \(flight.flightNumber)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Text(flight.date)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text(flight.arrival)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    
-                    Spacer()
-                }
-                
-                HStack {
-                    Text("Report: \(flight.reportTime)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("Takeoff: \(flight.takeoffTime)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    Text("Landing: \(flight.landingTime)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Text("Duty: \(TimeUtilities.formatHoursAndMinutes(flight.dutyTime))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("Flight: \(TimeUtilities.formatHoursAndMinutes(flight.flightTime))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
-            .padding(.vertical, 4)
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -137,6 +221,6 @@ struct PDFFlightSelectionRow: View {
                 date: "8/7/25"
             )
         ],
-        onFlightSelected: { _ in }
+        onFlightsSelected: { _ in }
     )
 } 

@@ -166,10 +166,10 @@ struct FileUploadView: View {
         }
         .sheet(isPresented: $showingFlightSelection) {
             let flights = selectedFileType == .pdf ? pdfParser.parsedFlights : xmlParser.parsedFlights
-            PDFFlightSelectionView(flights: flights, onFlightSelected: { flight in
-                // Handle single flight selection - pass the selected flight as selectedFlights
+            PDFFlightSelectionView(flights: flights, onFlightsSelected: { selectedFlights in
+                // Handle multiple flight selection - pass the selected flights as selectedFlights
                 // and all flights as allFlights for trip context
-                onFlightsParsed([flight], flights)
+                onFlightsParsed(selectedFlights, flights)
             })
         }
         .onAppear {

@@ -21,6 +21,8 @@ class ManualCalcViewModel: ObservableObject {
     @Published var selectedStandbyLocation: String = ""
     @Published var showingDateTimePicker = false
     @Published var standbyStartDateTime = Date()
+    @Published var airportDutyStartDateTime = Date() // NEW: Separate field for airport duty start time
+    @Published var showingAirportDutyDateTimePicker = false // NEW: Control airport duty date time picker sheet
     @Published var showingReportingLocationPicker = false
     @Published var selectedReportingLocation: String = ""
     @Published var showingReportingDateTimePicker = false
@@ -52,6 +54,8 @@ class ManualCalcViewModel: ObservableObject {
     @Published var selectedBlockTimeMinute: Int = 0 // Track selected minute for block time input
     @Published var selectedStandbyHour: Int = 9 // Track selected hour for standby time input
     @Published var selectedStandbyMinute: Int = 0 // Track selected minute for standby time input
+    @Published var selectedAirportDutyHour: Int = 9 // NEW: Track selected hour for airport duty start time input
+    @Published var selectedAirportDutyMinute: Int = 0 // NEW: Track selected minute for airport duty start time input
     
     // MARK: - Details Sheets State
     @Published var showingWithDiscretionDetails = false
@@ -79,6 +83,15 @@ class ManualCalcViewModel: ObservableObject {
     
     var defaultStandbyLocation: String {
         return homeBase
+    }
+    
+    // Effective standby start time - for airport duty, this is the same as airport duty start time
+    var effectiveStandbyStartTime: Date {
+        if selectedStandbyType == "Airport Duty" {
+            return airportDutyStartDateTime
+        } else {
+            return standbyStartDateTime
+        }
     }
     
     // MARK: - Date and Time Formatters
@@ -179,8 +192,17 @@ class ManualCalcViewModel: ObservableObject {
         switch acclimatisationResult {
         case "B", "D":
             let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
-            let timeString = utcTimeFormatter.string(from: reportingDateTime)
             
+            // For airport duty, use airport duty start time for FDP calculations
+            // For all other cases, use flight report time
+            let referenceDateTime: Date
+            if isStandbyEnabled && selectedStandbyType == "Airport Duty" {
+                referenceDateTime = airportDutyStartDateTime
+            } else {
+                referenceDateTime = reportingDateTime
+            }
+            
+            let timeString = utcTimeFormatter.string(from: referenceDateTime)
             let localTime = TimeUtilities.getLocalTime(for: timeString, airportCode: currentDeparture)
             let sectorsForLookup = numberOfSectors == 1 ? 2 : numberOfSectors
             baseFDP = RegulatoryTableLookup.lookupFDPAcclimatised(reportTime: localTime, sectors: sectorsForLookup)
@@ -232,27 +254,47 @@ class ManualCalcViewModel: ObservableObject {
     
     func calculateTotalFDP() -> Double {
         let baseFDP = calculateMaxFDP()
+        print("DEBUG: calculateTotalFDP - Base FDP: \(baseFDP)h")
         
+        // Apply in-flight rest extension if applicable
+        var adjustedFDP = baseFDP
         if hasInFlightRest && restFacilityType != .none {
             let inFlightRestFDP = calculateInFlightRestExtension()
-            
-            if isStandbyEnabled && selectedStandbyType == "Standby" {
-                let standbyDuration = calculateStandbyDuration()
-                let thresholdHours = 8.0
-                
-                if standbyDuration > thresholdHours {
-                    let reduction = standbyDuration - thresholdHours
-                    let finalFDP = inFlightRestFDP - reduction
-                    let minimumFDP = 9.0
-                    let result = max(finalFDP, minimumFDP)
-                    return result
-                }
-            }
-            
-            return inFlightRestFDP
-        } else {
-            return baseFDP
+            adjustedFDP = inFlightRestFDP
+            print("DEBUG: calculateTotalFDP - In-flight rest applied: \(inFlightRestFDP)h")
         }
+        
+        // Apply standby reduction if applicable
+        if isStandbyEnabled && selectedStandbyType == "Standby" {
+            let standbyDuration = calculateStandbyDuration()
+            let thresholdHours = (hasInFlightRest && restFacilityType != .none) || hasSplitDuty ? 8.0 : 6.0
+            
+            print("DEBUG: calculateTotalFDP - Standby enabled: \(selectedStandbyType)")
+            print("DEBUG: calculateTotalFDP - Standby duration: \(standbyDuration)h")
+            print("DEBUG: calculateTotalFDP - Threshold hours: \(thresholdHours)h")
+            
+            if standbyDuration > thresholdHours {
+                let reduction = standbyDuration - thresholdHours
+                let beforeReduction = adjustedFDP
+                adjustedFDP = adjustedFDP - reduction
+                
+                print("DEBUG: calculateTotalFDP - Standby reduction applied: \(beforeReduction)h - \(reduction)h = \(adjustedFDP)h")
+                
+                // Apply minimum FDP limit
+                let minimumFDP = 9.0
+                if adjustedFDP < minimumFDP {
+                    print("DEBUG: calculateTotalFDP - Below minimum FDP, applying limit: \(adjustedFDP)h -> \(minimumFDP)h")
+                    adjustedFDP = minimumFDP
+                }
+            } else {
+                print("DEBUG: calculateTotalFDP - Standby duration (\(standbyDuration)h) not above threshold (\(thresholdHours)h), no reduction applied")
+            }
+        } else {
+            print("DEBUG: calculateTotalFDP - Standby not enabled or not 'Standby' type")
+        }
+        
+        print("DEBUG: calculateTotalFDP - Final adjusted FDP: \(adjustedFDP)h")
+        return adjustedFDP
     }
     
     // MARK: - Latest Off/On Blocks Time Calculations
@@ -292,7 +334,7 @@ class ManualCalcViewModel: ObservableObject {
     
     func getBaselineTimeForCalculations() -> Date {
         if isStandbyEnabled && selectedStandbyType == "Airport Duty" {
-            return standbyStartDateTime
+            return airportDutyStartDateTime // Use airport duty start time for FDP calculations
         } else {
             return reportingDateTime
         }
@@ -339,6 +381,34 @@ class ManualCalcViewModel: ObservableObject {
         
         if let utcDate = utcCalendar.date(from: newComponents) {
             standbyStartDateTime = utcDate
+        }
+    }
+    
+    func updateAirportDutyTimeFromCustomInput() {
+        let currentDate = airportDutyStartDateTime
+        var utcCalendar = Calendar.current
+        utcCalendar.timeZone = TimeZone(abbreviation: "UTC")!
+        
+        let utcComponents = utcCalendar.dateComponents([.year, .month, .day], from: currentDate)
+        var newComponents = DateComponents()
+        newComponents.year = utcComponents.year
+        newComponents.month = utcComponents.month
+        newComponents.day = utcComponents.day
+        newComponents.hour = selectedAirportDutyHour
+        newComponents.minute = selectedAirportDutyMinute
+        newComponents.second = 0
+        
+        if let utcDate = utcCalendar.date(from: newComponents) {
+            airportDutyStartDateTime = utcDate
+        }
+    }
+    
+    // Synchronize airport duty start time with standby start time when airport duty is selected
+    func synchronizeAirportDutyTime() {
+        if selectedStandbyType == "Airport Duty" {
+            airportDutyStartDateTime = standbyStartDateTime
+            selectedAirportDutyHour = selectedStandbyHour
+            selectedAirportDutyMinute = selectedStandbyMinute
         }
     }
     

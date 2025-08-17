@@ -12,6 +12,7 @@ struct DateTimePickerSheet: View {
     @Binding var isPresented: Bool
     let title: String
     let isStandbyTime: Bool
+    let isAirportDutyTime: Bool // NEW: Parameter to distinguish airport duty time
     
     var body: some View {
         NavigationView {
@@ -24,13 +25,13 @@ struct DateTimePickerSheet: View {
                 VStack(spacing: 16) {
                     // Date picker
                     DatePicker(
-                        isStandbyTime ? "Standby Start Date" : "Date",
-                        selection: isStandbyTime ? $viewModel.standbyStartDateTime : $viewModel.reportingDateTime,
+                        getDatePickerLabel(),
+                        selection: getDateSelection(),
                         displayedComponents: [.date]
                     )
                     .datePickerStyle(WheelDatePickerStyle())
                     .labelsHidden()
-                    .onChange(of: isStandbyTime ? viewModel.standbyStartDateTime : viewModel.reportingDateTime) { _, _ in
+                    .onChange(of: getDateSelection().wrappedValue) { _, _ in
                         if isStandbyTime {
                             viewModel.checkNightStandbyContact()
                         }
@@ -44,20 +45,15 @@ struct DateTimePickerSheet: View {
                         
                         HStack {
                             // Hour picker
-                            Picker("Hour", selection: isStandbyTime ? $viewModel.selectedStandbyHour : $viewModel.selectedHour) {
+                            Picker("Hour", selection: getHourSelection()) {
                                 ForEach(0..<24, id: \.self) { hour in
                                     Text(String(format: "%02d", hour)).tag(hour)
                                 }
                             }
                             .pickerStyle(WheelPickerStyle())
                             .frame(width: 80, height: 120)
-                            .onChange(of: isStandbyTime ? viewModel.selectedStandbyHour : viewModel.selectedHour) { _, newHour in
-                                if isStandbyTime {
-                                    viewModel.updateStandbyTimeFromCustomInput()
-                                    viewModel.checkNightStandbyContact()
-                                } else {
-                                    viewModel.updateReportingTimeFromCustomInput()
-                                }
+                            .onChange(of: getHourSelection().wrappedValue) { _, _ in
+                                updateTimeFromInput()
                             }
                             
                             Text(":")
@@ -65,20 +61,15 @@ struct DateTimePickerSheet: View {
                                 .fontWeight(.bold)
                             
                             // Minute picker
-                            Picker("Minute", selection: isStandbyTime ? $viewModel.selectedStandbyMinute : $viewModel.selectedMinute) {
+                            Picker("Minute", selection: getMinuteSelection()) {
                                 ForEach(0..<60, id: \.self) { minute in
                                     Text(String(format: "%02d", minute)).tag(minute)
                                 }
                             }
                             .pickerStyle(WheelPickerStyle())
                             .frame(width: 80, height: 120)
-                            .onChange(of: isStandbyTime ? viewModel.selectedStandbyMinute : viewModel.selectedMinute) { _, newMinute in
-                                if isStandbyTime {
-                                    viewModel.updateStandbyTimeFromCustomInput()
-                                    viewModel.checkNightStandbyContact()
-                                } else {
-                                    viewModel.updateReportingTimeFromCustomInput()
-                                }
+                            .onChange(of: getMinuteSelection().wrappedValue) { _, _ in
+                                updateTimeFromInput()
                             }
                             
                             Text("z")
@@ -111,11 +102,73 @@ struct DateTimePickerSheet: View {
                 
                 Spacer()
             }
-            .navigationTitle(isStandbyTime ? "Standby Start Time" : "Time")
+            .navigationTitle(getNavigationTitle())
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(trailing: Button("Done") {
                 isPresented = false
             })
+        }
+    }
+    
+    // MARK: - Helper Functions
+    private func getDatePickerLabel() -> String {
+        if isAirportDutyTime {
+            return "Airport Duty Start Date"
+        } else if isStandbyTime {
+            return "Standby Start Date"
+        } else {
+            return "Date"
+        }
+    }
+    
+    private func getDateSelection() -> Binding<Date> {
+        if isAirportDutyTime {
+            return $viewModel.airportDutyStartDateTime
+        } else if isStandbyTime {
+            return $viewModel.standbyStartDateTime
+        } else {
+            return $viewModel.reportingDateTime
+        }
+    }
+    
+    private func getHourSelection() -> Binding<Int> {
+        if isAirportDutyTime {
+            return $viewModel.selectedAirportDutyHour
+        } else if isStandbyTime {
+            return $viewModel.selectedStandbyHour
+        } else {
+            return $viewModel.selectedHour
+        }
+    }
+    
+    private func getMinuteSelection() -> Binding<Int> {
+        if isAirportDutyTime {
+            return $viewModel.selectedAirportDutyMinute
+        } else if isStandbyTime {
+            return $viewModel.selectedStandbyMinute
+        } else {
+            return $viewModel.selectedMinute
+        }
+    }
+    
+    private func updateTimeFromInput() {
+        if isAirportDutyTime {
+            viewModel.updateAirportDutyTimeFromCustomInput()
+        } else if isStandbyTime {
+            viewModel.updateStandbyTimeFromCustomInput()
+            viewModel.checkNightStandbyContact()
+        } else {
+            viewModel.updateReportingTimeFromCustomInput()
+        }
+    }
+    
+    private func getNavigationTitle() -> String {
+        if isAirportDutyTime {
+            return "Airport Duty Start Time"
+        } else if isStandbyTime {
+            return "Standby Start Time"
+        } else {
+            return "Time"
         }
     }
 }
