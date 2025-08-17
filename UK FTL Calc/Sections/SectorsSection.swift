@@ -107,7 +107,7 @@ struct SectorsSection: View {
                         .background(viewModel.hasSplitDuty ? Color(.systemGray4) : Color(.systemGray5))
                         .cornerRadius(12)
                     }
-                    .disabled(viewModel.hasSplitDuty)
+                    .disabled(viewModel.hasSplitDuty || viewModel.hasExtendedFDP)
                     
                     if viewModel.hasSplitDuty {
                         HStack {
@@ -115,6 +115,22 @@ struct SectorsSection: View {
                                 .foregroundColor(.orange)
                                 .font(.caption)
                             Text("In-Flight Rest not allowed with Split Duty")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                    if viewModel.hasExtendedFDP {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("In-Flight Rest not allowed with Extended FDP")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                                 .fontWeight(.medium)
@@ -168,14 +184,14 @@ struct SectorsSection: View {
                         
                         Toggle("", isOn: $viewModel.hasSplitDuty)
                             .toggleStyle(SwitchToggleStyle(tint: .orange))
-                            .disabled(viewModel.hasInFlightRest && viewModel.restFacilityType != .none)
+                            .disabled((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasExtendedFDP)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) ? Color(.systemGray4) : Color(.systemGray6))
+                    .background(((viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasExtendedFDP) ? Color(.systemGray4) : Color(.systemGray6))
                     .cornerRadius(12)
                     
-                    if viewModel.hasSplitDuty && !(viewModel.hasInFlightRest && viewModel.restFacilityType != .none) {
+                    if viewModel.hasSplitDuty && !(viewModel.hasInFlightRest && viewModel.restFacilityType != .none) && !viewModel.hasExtendedFDP {
                         Button(action: { viewModel.showingSplitDutyOptions = true }) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -200,6 +216,22 @@ struct SectorsSection: View {
                             .background(Color.blue.opacity(0.1))
                             .cornerRadius(12)
                         }
+                    }
+                    
+                    if viewModel.hasExtendedFDP {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Split Duty not allowed with Extended FDP")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(8)
                     }
                 }
                 

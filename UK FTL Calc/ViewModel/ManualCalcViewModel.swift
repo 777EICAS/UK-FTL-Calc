@@ -388,6 +388,53 @@ class ManualCalcViewModel: ObservableObject {
         
         print("DEBUG: calculateMaxFDP - Acclimatisation result: \(acclimatisationResult)")
         
+        // Check if extended FDP is enabled first
+        if hasExtendedFDP {
+            print("DEBUG: calculateMaxFDP - Extended FDP is enabled, using Table 4")
+            
+            let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
+            
+            // Use the appropriate baseline time based on standby type
+            let referenceDateTime: Date
+            if isStandbyEnabled {
+                switch selectedStandbyType {
+                case "Airport Duty":
+                    referenceDateTime = airportDutyStartDateTime
+                case "Airport Standby":
+                    referenceDateTime = reportingDateTime // Airport standby: FDP starts from report time
+                case "Standby":
+                    referenceDateTime = reportingDateTime // Home standby: FDP starts from report time
+                case "Reserve":
+                    referenceDateTime = reportingDateTime // Reserve: FDP starts from report time
+                default:
+                    referenceDateTime = reportingDateTime
+                }
+            } else {
+                referenceDateTime = reportingDateTime
+            }
+            
+            print("DEBUG: calculateMaxFDP - Extended FDP reference date time: \(referenceDateTime)")
+            
+            let timeString = utcTimeFormatter.string(from: referenceDateTime)
+            print("DEBUG: calculateMaxFDP - Extended FDP UTC time string: \(timeString)")
+            
+            let localTime = TimeUtilities.getLocalTime(for: timeString, airportCode: currentDeparture)
+            print("DEBUG: calculateMaxFDP - Extended FDP local time at \(currentDeparture): \(localTime)")
+            
+            let sectorsForLookup = numberOfSectors == 1 ? 2 : numberOfSectors
+            print("DEBUG: calculateMaxFDP - Extended FDP sectors for lookup: \(sectorsForLookup) (original: \(numberOfSectors))")
+            
+            // Use extended FDP table (Table 4)
+            if let extendedFDP = RegulatoryTableLookup.lookupExtendedFDP(reportTime: localTime, sectors: sectorsForLookup) {
+                print("DEBUG: calculateMaxFDP - Extended FDP from Table 4: \(extendedFDP)h")
+                // Extended FDP: no split duty or in-flight rest extensions allowed
+                return extendedFDP
+            } else {
+                print("DEBUG: calculateMaxFDP - Extended FDP not allowed for this time/sectors combination, falling back to standard calculation")
+                // Fall back to standard calculation if extended FDP not allowed
+            }
+        }
+        
         let baseFDP: Double
         switch acclimatisationResult {
         case "B", "D":
@@ -504,6 +551,12 @@ class ManualCalcViewModel: ObservableObject {
     }
     
     func calculateInFlightRestExtension() -> Double {
+        // Extended FDP cannot be combined with in-flight rest extensions
+        if hasExtendedFDP {
+            print("DEBUG: calculateInFlightRestExtension - Extended FDP is enabled, in-flight rest extensions not allowed")
+            return 0.0
+        }
+        
         let restClass: String
         switch restFacilityType {
         case .class1:
@@ -524,6 +577,12 @@ class ManualCalcViewModel: ObservableObject {
     }
     
     func calculateSplitDutyExtension() -> Double {
+        // Extended FDP cannot be combined with split duty extensions
+        if hasExtendedFDP {
+            print("DEBUG: calculateSplitDutyExtension - Extended FDP is enabled, split duty extensions not allowed")
+            return 0.0
+        }
+        
         guard hasSplitDuty else { 
             print("DEBUG: calculateSplitDutyExtension - hasSplitDuty is false, returning 0.0")
             return 0.0 
@@ -738,11 +797,40 @@ class ManualCalcViewModel: ObservableObject {
     
     // MARK: - Helper Functions
     func getCommandersDiscretionExtension() -> Double {
+        // If extended FDP is enabled, apply the 2-hour total extension limit
+        if hasExtendedFDP {
+            return getCommandersDiscretionExtensionWithExtendedFDPLimit()
+        }
+        
+        // Standard commanders discretion logic (unchanged)
         if hasInFlightRest && restFacilityType != .none {
             return 3.0
         } else {
             return 2.0
         }
+    }
+    
+    /// Calculates commanders discretion extension when extended FDP is enabled
+    /// The total extension from standard FDP cannot exceed 2 hours
+    private func getCommandersDiscretionExtensionWithExtendedFDPLimit() -> Double {
+        // Get the baseline FDP from standard tables (Table 2/3)
+        let baselineFDP = getBaseFDP()
+        
+        // Get the extended FDP from Table 4
+        let extendedFDP = calculateMaxFDP()
+        
+        // Calculate how much extension the extended FDP table already provides
+        let extendedFDPMargin = extendedFDP - baselineFDP
+        
+        // Commanders discretion can only be used to reach the 2-hour total extension limit
+        let availableCommandersDiscretion = max(0.0, 2.0 - extendedFDPMargin)
+        
+        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Baseline FDP: \(baselineFDP)h")
+        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Extended FDP: \(extendedFDP)h")
+        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Extended FDP margin: \(extendedFDPMargin)h")
+        print("DEBUG: getCommandersDiscretionExtensionWithExtendedFDPLimit - Available commanders discretion: \(availableCommandersDiscretion)h")
+        
+        return availableCommandersDiscretion
     }
     
     func getBaselineTimeForCalculations() -> Date {

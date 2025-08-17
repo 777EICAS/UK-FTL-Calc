@@ -111,6 +111,47 @@ struct FDPRosteredExtensionTable {
     ]
 }
 
+// MARK: - Extended FDP Table Structures
+
+struct ExtendedFDPEntry {
+    let startTimeRange: String
+    let sectors: [Double?] // Using Double? to handle "Not allowed" cases
+}
+
+struct ExtendedFDPTable {
+    let entries: [ExtendedFDPEntry]
+    
+    // Table 4: Maximum Daily FDP with Extension
+    // Based on British Airways OM A Table 4
+    static let data = [
+        ExtendedFDPEntry(startTimeRange: "0600-0614", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0615-0629", sectors: [13.25, 12.75, 12.25, 11.75, nil]), // 1-2: 13:15, 3: 12:45, 4: 12:15, 5: 11:45
+        ExtendedFDPEntry(startTimeRange: "0630-0644", sectors: [13.5, 13.0, 12.5, 12.0, nil]), // 1-2: 13:30, 3: 13:00, 4: 12:30, 5: 12:00
+        ExtendedFDPEntry(startTimeRange: "0645-0659", sectors: [13.75, 13.25, 12.75, 12.25, nil]), // 1-2: 13:45, 3: 13:15, 4: 12:45, 5: 12:15
+        ExtendedFDPEntry(startTimeRange: "0700-1329", sectors: [14.0, 13.5, 13.0, 12.5, nil]), // 1-2: 14:00, 3: 13:30, 4: 13:00, 5: 12:30
+        ExtendedFDPEntry(startTimeRange: "1330-1359", sectors: [13.75, 13.25, 12.75, 12.25, nil]), // 1-2: 13:45, 3: 13:15, 4: 12:45, 5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1400-1429", sectors: [13.5, 13.0, 12.5, 12.0, nil]), // 1-2: 13:30, 3: 13:00, 4: 12:30, 5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1430-1459", sectors: [13.25, 12.75, 12.25, 11.75, nil]), // 1-2: 13:15, 3: 12:45, 4: 12:15, 5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1500-1529", sectors: [13.0, 12.5, 12.0, 11.5, nil]), // 1-2: 13:00, 3: 12:30, 4: 12:00, 5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1530-1559", sectors: [12.75, 12.25, nil, nil, nil]), // 1-2: 12:45, 3: Not allowed, 4-5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1600-1629", sectors: [12.5, 12.0, nil, nil, nil]), // 1-2: 12:30, 3: Not allowed, 4-5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1630-1659", sectors: [12.25, 11.75, nil, nil, nil]), // 1-2: 12:15, 3: Not allowed, 4-5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1700-1729", sectors: [12.0, nil, nil, nil, nil]), // 1-2: 12:00, 3-5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1730-1759", sectors: [11.75, nil, nil, nil, nil]), // 1-2: 11:45, 3-5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1800-1829", sectors: [11.5, nil, nil, nil, nil]), // 1-2: 11:30, 3-5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1830-1859", sectors: [11.25, nil, nil, nil, nil]), // 1-2: 11:15, 3-5: Not allowed
+        ExtendedFDPEntry(startTimeRange: "1900-0359", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0400-0414", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0415-0429", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0430-0444", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0445-0459", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0500-0514", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0515-0529", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0530-0544", sectors: [nil, nil, nil, nil, nil]), // Not allowed for all sectors
+        ExtendedFDPEntry(startTimeRange: "0545-0559", sectors: [nil, nil, nil, nil, nil]) // Not allowed for all sectors
+    ]
+}
+
 // MARK: - In-Flight Rest FDP Extensions
 
 struct InflightRestExtensions {
@@ -342,7 +383,7 @@ class RegulatoryTableLookup {
     static func lookupFDPAcclimatised(reportTime: String, sectors: Int) -> Double {
         print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Input: reportTime=\(reportTime), sectors=\(sectors)")
         
-        let timeRange = getTimeRangeFromReportTime(reportTime)
+        let timeRange = getStandardFDPTimeRange(reportTime)
         print("DEBUG: RegulatoryTableLookup.lookupFDPAcclimatised - Time range: \(timeRange)")
         
         guard let entry = FDPAcclimatisedTable.data.first(where: { $0.startTimeRange == timeRange }) else {
@@ -411,8 +452,55 @@ class RegulatoryTableLookup {
         return result
     }
     
+    // MARK: - Extended FDP Lookup Function
+    
+    /// Looks up extended FDP limits from Table 4: Maximum Daily FDP with Extension
+    /// Returns nil if extended FDP is not allowed for the given time and sectors
+    static func lookupExtendedFDP(reportTime: String, sectors: Int) -> Double? {
+        print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - Input: reportTime=\(reportTime), sectors=\(sectors)")
+        
+        let timeRange = getExtendedFDPTimeRange(reportTime)
+        print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - Time range: \(timeRange)")
+        
+        guard let entry = ExtendedFDPTable.data.first(where: { $0.startTimeRange == timeRange }) else {
+            print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - No table entry found for time range: \(timeRange)")
+            return nil // Extended FDP not allowed for this time
+        }
+        
+        print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - Found table entry: \(entry.startTimeRange)")
+        print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - Available sectors data: \(entry.sectors)")
+        
+        // Convert sectors to proper index for Table 4:
+        // 1-2 sectors = index 0
+        // 3 sectors = index 1
+        // 4 sectors = index 2
+        // 5 sectors = index 3
+        let sectorIndex: Int
+        if sectors <= 2 {
+            sectorIndex = 0 // 1-2 sectors
+        } else if sectors <= 5 {
+            sectorIndex = sectors - 2 // 3 sectors = index 1, 4 sectors = index 2, 5 sectors = index 3
+        } else {
+            print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - \(sectors) sectors not supported in extended FDP table")
+            return nil // Extended FDP not supported for 6+ sectors
+        }
+        
+        print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - Sector index: \(sectorIndex)")
+        
+        let safeIndex = min(sectorIndex, entry.sectors.count - 1)
+        let result = entry.sectors[safeIndex]
+        
+        if let result = result {
+            print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - Final result: \(result)h (from index \(safeIndex))")
+            return result
+        } else {
+            print("DEBUG: RegulatoryTableLookup.lookupExtendedFDP - Extended FDP not allowed for \(sectors) sectors at time \(timeRange)")
+            return nil // Extended FDP not allowed for this combination
+        }
+    }
+    
     static func lookupFDPRosteredExtension(reportTime: String, sectors: Int) -> Double? {
-        let timeRange = getTimeRangeFromReportTime(reportTime)
+        let timeRange = getStandardFDPTimeRange(reportTime)
         
         guard let entry = FDPRosteredExtensionTable.data.first(where: { $0.startTimeRange == timeRange }) else {
             return nil
@@ -511,17 +599,18 @@ class RegulatoryTableLookup {
     
     // MARK: - Helper Functions
     
-    private static func getTimeRangeFromReportTime(_ reportTime: String) -> String {
-        print("DEBUG: getTimeRangeFromReportTime - Input report time: \(reportTime)")
+    /// Maps report time to standard FDP table time ranges (Table 2/3)
+    private static func getStandardFDPTimeRange(_ reportTime: String) -> String {
+        print("DEBUG: getStandardFDPTimeRange - Input report time: \(reportTime)")
         
         // Extract time from report time (e.g., "12:30z" -> "1230")
         let timeString = reportTime.replacingOccurrences(of: "z", with: "").replacingOccurrences(of: ":", with: "")
-        print("DEBUG: getTimeRangeFromReportTime - Cleaned time string: \(timeString)")
+        print("DEBUG: getStandardFDPTimeRange - Cleaned time string: \(timeString)")
         
         let timeInt = Int(timeString) ?? 0
-        print("DEBUG: getTimeRangeFromReportTime - Parsed time integer: \(timeInt)")
+        print("DEBUG: getStandardFDPTimeRange - Parsed time integer: \(timeInt)")
         
-        // Map to appropriate time range
+        // Map to appropriate time range based on Standard FDP Table 2/3 entries
         let timeRange: String
         if timeInt >= 500 && timeInt <= 514 { 
             timeRange = "0500-0514"
@@ -547,13 +636,86 @@ class RegulatoryTableLookup {
             timeRange = "1600-1629"
         } else if timeInt >= 1630 && timeInt <= 1659 { 
             timeRange = "1630-1659"
-        } else if timeInt >= 1700 || timeInt <= 459 { 
+        } else if timeInt >= 1700 && timeInt <= 459 { 
             timeRange = "1700-0459"
         } else {
-            timeRange = "1700-0459" // Default for early morning times
+            // Default fallback for any unmapped times
+            timeRange = "0600-1329" // Most restrictive default
         }
         
-        print("DEBUG: getTimeRangeFromReportTime - Mapped time range: \(timeRange)")
+        print("DEBUG: getStandardFDPTimeRange - Mapped time range: \(timeRange)")
+        return timeRange
+    }
+    
+    /// Maps report time to Extended FDP table time ranges (Table 4)
+    private static func getExtendedFDPTimeRange(_ reportTime: String) -> String {
+        print("DEBUG: getExtendedFDPTimeRange - Input report time: \(reportTime)")
+        
+        // Extract time from report time (e.g., "12:30z" -> "1230")
+        let timeString = reportTime.replacingOccurrences(of: "z", with: "").replacingOccurrences(of: ":", with: "")
+        print("DEBUG: getExtendedFDPTimeRange - Cleaned time string: \(timeString)")
+        
+        let timeInt = Int(timeString) ?? 0
+        print("DEBUG: getExtendedFDPTimeRange - Parsed time integer: \(timeInt)")
+        
+        // Map to appropriate time range based on Extended FDP Table 4 entries
+        let timeRange: String
+        if timeInt >= 600 && timeInt <= 614 { 
+            timeRange = "0600-0614"
+        } else if timeInt >= 615 && timeInt <= 629 { 
+            timeRange = "0615-0629"
+        } else if timeInt >= 630 && timeInt <= 644 { 
+            timeRange = "0630-0644"
+        } else if timeInt >= 645 && timeInt <= 659 { 
+            timeRange = "0645-0659"
+        } else if timeInt >= 700 && timeInt <= 1329 { 
+            timeRange = "0700-1329"
+        } else if timeInt >= 1330 && timeInt <= 1359 { 
+            timeRange = "1330-1359"
+        } else if timeInt >= 1400 && timeInt <= 1429 { 
+            timeRange = "1400-1429"
+        } else if timeInt >= 1430 && timeInt <= 1459 { 
+            timeRange = "1430-1459"
+        } else if timeInt >= 1500 && timeInt <= 1529 { 
+            timeRange = "1500-1529"
+        } else if timeInt >= 1530 && timeInt <= 1559 { 
+            timeRange = "1530-1559"
+        } else if timeInt >= 1600 && timeInt <= 1629 { 
+            timeRange = "1600-1629"
+        } else if timeInt >= 1630 && timeInt <= 1659 { 
+            timeRange = "1630-1659"
+        } else if timeInt >= 1700 && timeInt <= 1729 { 
+            timeRange = "1700-1729"
+        } else if timeInt >= 1730 && timeInt <= 1759 { 
+            timeRange = "1730-1759"
+        } else if timeInt >= 1800 && timeInt <= 1829 { 
+            timeRange = "1800-1829"
+        } else if timeInt >= 1830 && timeInt <= 1859 { 
+            timeRange = "1830-1859"
+        } else if timeInt >= 1900 && timeInt <= 0359 { 
+            timeRange = "1900-0359"
+        } else if timeInt >= 400 && timeInt <= 414 { 
+            timeRange = "0400-0414"
+        } else if timeInt >= 415 && timeInt <= 429 { 
+            timeRange = "0415-0429"
+        } else if timeInt >= 430 && timeInt <= 444 { 
+            timeRange = "0430-0444"
+        } else if timeInt >= 445 && timeInt <= 459 { 
+            timeRange = "0445-0459"
+        } else if timeInt >= 500 && timeInt <= 514 { 
+            timeRange = "0500-0514"
+        } else if timeInt >= 515 && timeInt <= 529 { 
+            timeRange = "0515-0529"
+        } else if timeInt >= 530 && timeInt <= 544 { 
+            timeRange = "0530-0544"
+        } else if timeInt >= 545 && timeInt <= 559 { 
+            timeRange = "0545-0559"
+        } else {
+            // Default fallback for any unmapped times
+            timeRange = "0600-0614" // Most restrictive default
+        }
+        
+        print("DEBUG: getExtendedFDPTimeRange - Mapped time range: \(timeRange)")
         return timeRange
     }
     
