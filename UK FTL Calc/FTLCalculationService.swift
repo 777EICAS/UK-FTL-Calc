@@ -206,6 +206,7 @@ class FTLCalculationService {
             commanderDiscretionUsed: false, // Would need to be tracked
             standbyStartTime: hasStandbyDuty ? standbyStartTime : nil,
             standbyType: standbyType,
+            standbyContactTime: ftlFactors.standbyContactTime, // NEW: Pass standby contact time for night standby
             dutyEndTime: "00:00", // Placeholder
             flightTimes: [flightTime], // Pass the calculated flight time for long flight detection
             preCalculatedElapsedTime: ftlFactors.elapsedTimeHours, // NEW: Pass the pre-calculated elapsed time
@@ -314,7 +315,7 @@ class FTLCalculationService {
         
         // Step 7: Apply Standby Adjustments
         if let standbyType = input.standbyType, let standbyStartTime = input.standbyStartTime {
-            let standbyAdjustment = calculateStandbyAdjustment(input: input, standbyType: standbyType, standbyStartTime: standbyStartTime)
+            let standbyAdjustment = calculateStandbyAdjustment(input: input, standbyType: standbyType, standbyStartTime: standbyStartTime, standbyContactTime: input.standbyContactTime)
             if standbyAdjustment != 0 {
                 baseFDP += standbyAdjustment
                 adjustments["standby"] = standbyAdjustment
@@ -456,7 +457,7 @@ class FTLCalculationService {
         }
     }
     
-    private static func calculateStandbyAdjustment(input: FDPCalculationInput, standbyType: StandbyType, standbyStartTime: String) -> Double {
+    private static func calculateStandbyAdjustment(input: FDPCalculationInput, standbyType: StandbyType, standbyStartTime: String, standbyContactTime: String?) -> Double {
         // Standby adjustments depend on the type and duration
         // This is a simplified implementation
         return 0.0

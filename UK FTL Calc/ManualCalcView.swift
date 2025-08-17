@@ -42,7 +42,7 @@ struct ManualCalcView: View {
                 }
             }
             .padding()
-            .background(Color(.systemBackground))
+            .background(Color(.systemGray6))
             .cornerRadius(12)
             .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     }
@@ -230,11 +230,11 @@ struct ManualCalcView: View {
     }
     
     private var dateTimePickerSheet: some View {
-        DateTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingDateTimePicker, title: "Select Standby Start Date & Time", isStandbyTime: true, isAirportDutyTime: false)
+        DateTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingDateTimePicker, isStandbyTime: true, isAirportDutyTime: false, title: "Select Standby Start Date & Time")
     }
     
     private var airportDutyDateTimePickerSheet: some View {
-        DateTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingAirportDutyDateTimePicker, title: "Select Airport Duty Start Date & Time", isStandbyTime: false, isAirportDutyTime: true)
+        DateTimePickerSheet(viewModel: viewModel, isPresented: $viewModel.showingAirportDutyDateTimePicker, isStandbyTime: false, isAirportDutyTime: true, title: "Select Airport Duty Start Date & Time")
     }
     
     private var reportingLocationPickerSheet: some View {

@@ -875,6 +875,34 @@ struct ContentView: View {
                                         .font(.subheadline)
                                 }
                         }
+                        
+                        // Standby Contact Time (for night standby)
+                        if viewModel.ftlFactors.hasStandbyDuty && viewModel.ftlFactors.standbyType == .homeStandby {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "phone.circle.fill")
+                                        .foregroundColor(.orange)
+                                        .font(.caption)
+                                    Text("Standby Contact Time (Z)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                TextField("HH:MM", text: $viewModel.ftlFactors.standbyContactTime)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .font(.subheadline)
+                                    .placeholder(when: viewModel.ftlFactors.standbyContactTime.isEmpty) {
+                                        Text("Enter when contacted (Z time)")
+                                            .foregroundColor(.secondary)
+                                            .font(.subheadline)
+                                    }
+                                
+                                Text("Required for night standby (23:00-07:00 local time)")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                    .italic()
+                            }
+                        }
                     }
                     
                     // Time Zone and Auto-Calculate
@@ -1096,6 +1124,7 @@ struct ContentView: View {
                                             viewModel.ftlFactors.hasStandbyDuty = false
                                             viewModel.ftlFactors.standbyTypeSelected = false
                                             viewModel.ftlFactors.standbyStartTime = ""
+                                            viewModel.ftlFactors.standbyContactTime = ""
                                         }
                                     }
                                 ))

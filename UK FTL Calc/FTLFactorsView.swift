@@ -704,7 +704,7 @@ struct InFlightRestFacilitySelectionView: View {
                                 // Show FDP extension benefit
                                 if facilityType != .none {
                                     HStack {
-                                        Image(systemName: "clock.badge.plus")
+                                        Image(systemName: "clock.arrow.circlepath")
                                             .font(.caption)
                                             .foregroundColor(.green)
                                         

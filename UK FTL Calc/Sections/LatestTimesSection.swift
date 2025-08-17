@@ -14,7 +14,7 @@ struct LatestTimesSection: View {
         VStack(alignment: .leading, spacing: 16) {
             // Section Header
             HStack {
-                Image(systemName: "clock.badge.plus")
+                Image(systemName: "clock.arrow.circlepath")
                     .foregroundColor(.purple)
                     .font(.title2)
                 
@@ -304,7 +304,7 @@ struct LatestTimesSection: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(.systemGray6))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }

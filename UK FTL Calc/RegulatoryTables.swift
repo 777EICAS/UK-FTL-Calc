@@ -555,17 +555,23 @@ class RegulatoryTableLookup {
         hasSplitDuty: Bool
     ) -> HomeStandbyFDPResult {
         
+        print("DEBUG: calculateHomeStandbyFDPReduction - standbyStartTime: '\(standbyStartTime)', reportTime: '\(reportTime)'")
+        print("DEBUG: calculateHomeStandbyFDPReduction - hasInflightRest: \(hasInflightRest), hasSplitDuty: \(hasSplitDuty)")
+        
         // Calculate total standby duration
         let totalStandbyDuration = TimeUtilities.calculateHoursBetween(standbyStartTime, reportTime)
+        print("DEBUG: calculateHomeStandbyFDPReduction - totalStandbyDuration: \(totalStandbyDuration)h")
         
         // Determine threshold based on in-flight rest or split duty
         let threshold = (hasInflightRest || hasSplitDuty) ? 8.0 : 6.0
+        print("DEBUG: calculateHomeStandbyFDPReduction - threshold: \(threshold)h")
         
         // Apply night exclusion (23:00-07:00) as per regulation
         let effectiveStandbyTime = applyNightExclusionToStandby(
             standbyDuration: totalStandbyDuration,
             standbyStartTime: standbyStartTime
         )
+        print("DEBUG: calculateHomeStandbyFDPReduction - effectiveStandbyTime: \(effectiveStandbyTime)h")
         
         var fdpReduction = 0.0
         var explanation = ""
@@ -579,6 +585,8 @@ class RegulatoryTableLookup {
             fdpReduction = effectiveStandbyTime - threshold
             explanation = "Home Standby exceeded \(TimeUtilities.formatHoursAndMinutes(threshold)) by \(TimeUtilities.formatHoursAndMinutes(fdpReduction)). FDP reduced accordingly."
         }
+        
+        print("DEBUG: calculateHomeStandbyFDPReduction - fdpReduction: \(fdpReduction)h, explanation: \(explanation)")
         
         return HomeStandbyFDPResult(
             standbyDuration: effectiveStandbyTime,

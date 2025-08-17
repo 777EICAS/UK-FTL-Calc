@@ -11,12 +11,12 @@ struct ReportingSection: View {
     @ObservedObject var viewModel: ManualCalcViewModel
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Section Header
+        VStack(alignment: .leading, spacing: 12) {
+            // Section Header - Matching Sectors section style
             HStack {
                 Image(systemName: "clock.badge.checkmark")
                     .foregroundColor(.green)
-                    .font(.title2)
+                    .font(.title3)
                 
                 Text("Reporting")
                     .font(.headline)
@@ -25,18 +25,19 @@ struct ReportingSection: View {
                 Spacer()
             }
             
-            VStack(spacing: 16) {
-                // Reporting Location (hide when airport duty is selected)
+            VStack(spacing: 14) {
+                // Reporting Location Card (hide when airport duty is selected)
                 if !(viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty") {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Image(systemName: "mappin.circle")
                                 .foregroundColor(.blue)
-                                .font(.caption)
+                                .font(.title3)
                             Text("Reporting Location")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                            Spacer()
                         }
                         
                         Button(action: { viewModel.showingReportingLocationPicker = true }) {
@@ -62,30 +63,39 @@ struct ReportingSection: View {
                                     .foregroundColor(.blue)
                                     .font(.caption)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             .background(Color(.systemGray5))
                             .cornerRadius(12)
                         }
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
                 }
                 
-                // Reporting Date/Time (hide when airport duty is selected)
+                // Reporting Date/Time Card (hide when airport duty is selected)
                 if !(viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty") {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Image(systemName: "calendar.badge.clock")
                                 .foregroundColor(.orange)
-                                .font(.caption)
+                                .font(.title3)
                             Text("Reporting Date & Time")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                            Spacer()
                         }
                         
                         // Helpful instruction
                         Text("Enter time in UTC (Zulu time)")
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 4)
                         
@@ -110,24 +120,33 @@ struct ReportingSection: View {
                                     .foregroundColor(.orange)
                                     .font(.caption)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             .background(Color(.systemGray5))
                             .cornerRadius(12)
                         }
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                    )
                 }
                 
-                // Acclimatisation Selection
-                VStack(alignment: .leading, spacing: 8) {
+                // Acclimatisation Card
+                VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Image(systemName: "globe")
                             .foregroundColor(.purple)
-                            .font(.caption)
+                            .font(.title3)
                         Text("Acclimatisation")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        Spacer()
                     }
                     
                     Button(action: { viewModel.showingAcclimatisationPicker = true }) {
@@ -155,16 +174,25 @@ struct ReportingSection: View {
                                 .foregroundColor(.purple)
                                 .font(.caption)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
                         .background(Color(.systemGray5))
                         .cornerRadius(12)
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                )
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.systemGray6))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }

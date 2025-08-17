@@ -566,7 +566,7 @@ struct FactorDetailPopupView: View {
             return "After 5 or more consecutive duty days, reduced limits apply to prevent cumulative fatigue. This is a key safety measure in the UK CAA FTL regulations."
             
         case "Standby Duty":
-            return "Standby duty affects FDP limits and duty time calculations. Home standby FDP starts from report time with reduction based on standby duration exceeding 6-8 hours. Airport standby counts all time toward FDP limits."
+            return "Standby duty affects FDP limits and duty time calculations. Home standby FDP starts from report time with reduction based on standby duration exceeding 6-8 hours. For night standby (23:00-07:00), contact time is used for FDP reduction calculations. Airport standby counts all time toward FDP limits."
             
         default:
             return "This factor affects duty limits according to UK CAA Flight Time Limitations regulations. The specific impact depends on the combination of factors present in your duty."
@@ -615,7 +615,7 @@ struct FactorDetailPopupView: View {
             return "Consecutive duty day limits are cumulative and apply to the entire duty period. These limits work in combination with daily limits and cannot be extended by other factors. They represent a fundamental safety boundary."
             
         case "Standby Duty":
-            return "Standby duty affects when FDP begins and how total duty time is calculated. Home standby delays FDP start, while airport standby counts all time. This factor modifies the duty start time, which then affects all subsequent calculations."
+            return "Standby duty affects when FDP begins and how total duty time is calculated. Home standby delays FDP start, while airport standby counts all time. For night standby (23:00-07:00), FDP reduction is calculated from contact time rather than standby start time. This factor modifies the duty start time, which then affects all subsequent calculations."
             
         default:
             return "This factor works in combination with other active factors to determine your final duty limits. The most restrictive limit always applies, ensuring compliance with UK CAA safety regulations."

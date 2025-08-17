@@ -10,9 +10,13 @@ import SwiftUI
 struct DateTimePickerSheet: View {
     @ObservedObject var viewModel: ManualCalcViewModel
     @Binding var isPresented: Bool
-    let title: String
+    
+    // Add temporary date to prevent direct binding issues
+    @State private var tempSelectedDate: Date = Date()
+    
     let isStandbyTime: Bool
-    let isAirportDutyTime: Bool // NEW: Parameter to distinguish airport duty time
+    let isAirportDutyTime: Bool
+    let title: String
     
     var body: some View {
         NavigationView {
@@ -26,17 +30,16 @@ struct DateTimePickerSheet: View {
                     // Date picker
                     DatePicker(
                         getDatePickerLabel(),
-                        selection: getDateSelection(),
+                        selection: $tempSelectedDate,
                         displayedComponents: [.date]
                     )
                     .datePickerStyle(WheelDatePickerStyle())
                     .labelsHidden()
-                    .onChange(of: getDateSelection().wrappedValue) { _, _ in
+                    .onChange(of: tempSelectedDate) { _, _ in
                         // Update the time when date changes to ensure synchronization
                         updateTimeFromInput()
-                        if isStandbyTime {
-                            viewModel.checkNightStandbyContact()
-                        }
+                        // Removed checkNightStandbyContact() call as it was causing date shifts
+                        // Night standby contact check should only happen when explicitly setting standby time
                     }
                     
                     // Custom time input for UTC
@@ -107,6 +110,8 @@ struct DateTimePickerSheet: View {
                 Spacer()
             }
             .onAppear {
+                // Initialize the temporary date with the current value
+                tempSelectedDate = getDateSelection().wrappedValue
                 // Initialize hour/minute pickers to match current date/time values
                 initializeTimeComponents()
             }
@@ -165,7 +170,8 @@ struct DateTimePickerSheet: View {
         if isAirportDutyTime {
             viewModel.updateAirportDutyTimeFromCustomInput()
         } else if isStandbyTime {
-            viewModel.updateStandbyTimeFromCustomInput()
+            // Use temporary date to prevent direct binding issues
+            viewModel.updateStandbyTimeFromCustomInputWithDate(tempSelectedDate)
             viewModel.checkNightStandbyContact()
         } else {
             viewModel.updateReportingTimeFromCustomInput()

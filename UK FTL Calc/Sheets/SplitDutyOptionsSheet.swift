@@ -69,7 +69,7 @@ struct SplitDutyOptionsSheet: View {
                             
                             Toggle("", isOn: $viewModel.hasSplitDuty)
                                 .toggleStyle(SwitchToggleStyle(tint: .orange))
-                                .onChange(of: viewModel.hasSplitDuty) { _ in
+                                .onChange(of: viewModel.hasSplitDuty) { _, _ in
                                     hasUnsavedChanges = true
                                 }
                         }
@@ -280,7 +280,7 @@ struct SplitDutyOptionsSheet: View {
                         }
                         .pickerStyle(WheelPickerStyle())
                         .frame(width: 80, height: 120)
-                        .onChange(of: viewModel.selectedBreakDurationHour) { _ in
+                        .onChange(of: viewModel.selectedBreakDurationHour) { _, _ in
                             hasUnsavedChanges = true
                         }
                     }
@@ -298,7 +298,7 @@ struct SplitDutyOptionsSheet: View {
                         }
                         .pickerStyle(WheelPickerStyle())
                         .frame(width: 80, height: 120)
-                        .onChange(of: viewModel.selectedBreakDurationMinute) { _ in
+                        .onChange(of: viewModel.selectedBreakDurationMinute) { _, _ in
                             hasUnsavedChanges = true
                         }
                     }
@@ -367,7 +367,7 @@ struct SplitDutyOptionsSheet: View {
                         }
                         .pickerStyle(WheelPickerStyle())
                         .frame(width: 80, height: 120)
-                        .onChange(of: viewModel.selectedBreakBeginHour) { _ in
+                        .onChange(of: viewModel.selectedBreakBeginHour) { _, _ in
                             hasUnsavedChanges = true
                         }
                     }
@@ -385,7 +385,7 @@ struct SplitDutyOptionsSheet: View {
                         }
                         .pickerStyle(WheelPickerStyle())
                         .frame(width: 80, height: 120)
-                        .onChange(of: viewModel.selectedBreakBeginMinute) { _ in
+                        .onChange(of: viewModel.selectedBreakBeginMinute) { _, _ in
                             hasUnsavedChanges = true
                         }
                     }

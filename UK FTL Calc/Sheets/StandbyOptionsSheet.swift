@@ -59,7 +59,7 @@ struct StandbyOptionsSheet: View {
             
             // Content Area - Updated with consistent spacing and card design
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 14) {
                     if viewModel.selectedStandbyType == "Standby" {
                         standbyContent
                     } else if viewModel.selectedStandbyType == "Airport Standby" {
@@ -72,7 +72,8 @@ struct StandbyOptionsSheet: View {
                         standbyContent
                     }
                 }
-                .padding()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
         }
         .background(Color(.systemGroupedBackground))
@@ -99,25 +100,23 @@ struct StandbyOptionsSheet: View {
     // MARK: - Content Views - Updated with consistent styling
     
     private var standbyContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 14) {
             // Header Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "house.fill")
                         .foregroundColor(.purple)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("Home Standby")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.purple)
-                    .frame(height: 3)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• Home standby (other than at the airport)")
                     Text("• Maximum duration 16 hours")
                     Text("• Total time awake (standby + Duty) should not exceed 18 hours")
@@ -126,29 +125,31 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+            )
             
             // FDP Rules Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "clock.arrow.circlepath")
                         .foregroundColor(.blue)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("FDP Calculation Rules")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.blue)
-                    .frame(height: 3)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• If reporting within first 6 hours of home standby, FDP starts at report time")
                     Text("• If reporting after first 6 hours of home standby, max FDP is reduced by the amount of time exceeding 6 hours")
                     Text("• In-flight rest or split duty increases these times to 8 hours")
@@ -157,33 +158,35 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
         }
     }
     
     private var airportStandbyContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 14) {
             // Header Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "airplane.circle.fill")
                         .foregroundColor(.orange)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("Airport Standby")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.orange)
-                    .frame(height: 3)
-                    
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• Accommodation away from the airport is provided by the operator")
                     Text("• Maximum duration 16 hours (airport standby + FDP) unless split duty or in-flight rest")
                     Text("• Counts in full towards daily and weekly duty limits and rest requirements")
@@ -192,29 +195,31 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+            )
             
             // FDP Rules Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "clock.arrow.circlepath")
                         .foregroundColor(.blue)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("FDP Calculation Rules")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.blue)
-                    .frame(height: 3)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• Airport standby counts towards duty limits and rest requirements")
                     Text("• FDP begins at the reporting time for assigned duty")
                     Text("• Maximum FDP is reduced by airport standby exceeding 4 hours")
@@ -223,33 +228,35 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
         }
     }
     
     private var airportDutyContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 14) {
             // Header Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "building.2.fill")
                         .foregroundColor(.green)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("Duties at the Airport")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.green)
-                    .frame(height: 3)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• Accommodation is not provided (accommodation means somewhere away from the airport, if you are on standby in the airport then it is an airport duty)")
                     Text("• Any airport duty counts towards FDP and rest requirements")
                     Text("• FDP starts from reporting for airport duty")
@@ -258,29 +265,31 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+            )
             
             // FDP Rules Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "clock.arrow.circlepath")
                         .foregroundColor(.blue)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("FDP Calculation Rules")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.blue)
-                    .frame(height: 3)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• Airport duty counts in full as a duty period")
                     Text("• FDP begins at the reporting time for airport duty")
                     Text("• Maximum FDP is not reduced by prior airport duty")
@@ -289,33 +298,35 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
         }
     }
     
     private var reserveContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 14) {
             // Header Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "person.badge.plus")
                         .foregroundColor(.purple)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("Reserve")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.purple)
-                    .frame(height: 3)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• Reserve is a period that a crew member must be available to receive an assignment for a duty, they need to be given at least 10 hours notice for the duty")
                     Text("• There must be a period of at least 8 hours for rest (aka sleep)")
                     Text("• The 10 hour advanced notification may include the protected 8 hours sleep time")
@@ -325,29 +336,31 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+            )
             
             // FDP Rules Card
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: "clock.arrow.circlepath")
                         .foregroundColor(.blue)
-                        .font(.title2)
+                        .font(.title3)
                     
                     Text("FDP Calculation Rules")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
                 
-                Rectangle()
-                    .fill(Color.blue)
-                    .frame(height: 3)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("• Reserve time does not count towards duty limits or rest requirements")
                     Text("• FDP begins only when a duty is assigned and reporting time is set")
                     Text("• The 10-hour notice period includes protected 8-hour sleep time")
@@ -356,10 +369,14 @@ struct StandbyOptionsSheet: View {
                 .font(.subheadline)
                 .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
         }
     }
 }

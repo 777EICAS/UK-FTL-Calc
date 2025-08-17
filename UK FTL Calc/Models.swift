@@ -120,7 +120,7 @@ enum StandbyType: String, CaseIterable {
     var description: String {
         switch self {
         case .homeStandby:
-            return "Standby at home or suitable accommodation. FDP starts from report time with reduction based on standby duration exceeding 6-8 hours."
+            return "Standby at home or suitable accommodation. FDP starts from report time with reduction based on standby duration exceeding 6-8 hours. For night standby (23:00-07:00), contact time is used for FDP reduction calculations."
         case .airportStandby:
             return "Standby at airport or designated location. All time counts towards FDP. No maximum standby time."
         }
@@ -142,6 +142,7 @@ struct FTLFactors {
     var standbyType: StandbyType = .homeStandby
     var standbyTypeSelected: Bool = false // Track if user has selected a standby type
     var standbyStartTime: String = "" // Z time when standby started
+    var standbyContactTime: String = "" // NEW: Z time when crew was contacted for night standby
     var timeZoneDifference: Int = 0 // Hours of time zone difference
     var consecutiveDutyDays: Int = 1
     var timeZoneChanges: Int = 0
@@ -631,9 +632,9 @@ struct UKCAALimits {
         if factors.hasStandbyDuty {
             switch factors.standbyType {
             case .homeStandby:
-                explanations.append("Home standby: FDP starts from report time. FDP reduced by standby time exceeding 6 hours (8 hours with in-flight rest or split duty). Commanders discretion available for FDP extension.")
+                explanations.append("Home standby duty")
             case .airportStandby:
-                explanations.append("Airport standby: FDP starts from standby start time. All standby time counts towards FDP. No maximum standby time limit.")
+                explanations.append("Airport standby duty")
             }
         }
         
@@ -1174,13 +1175,13 @@ struct UKCAALimits {
             activeFactors.append(ActiveFactor(
                 title: "Standby Duty",
                 description: standbyDescription,
-                details: factors.standbyStartTime.isEmpty ? "Standby time not specified" : "Started at \(factors.standbyStartTime)",
+                details: factors.standbyStartTime.isEmpty ? "Standby time not specified" : "Started at \(factors.standbyStartTime)\(factors.standbyContactTime.isEmpty ? "" : ", contacted at \(factors.standbyContactTime)")",
                 impact: standbyImpact,
                 impactType: .modification,
                 isActive: true,
-                calculationDetails: "Standby duty: \(factors.standbyType.rawValue). \(factors.standbyType == .homeStandby ? "FDP starts from report time with reduction based on standby duration" : "All standby time counts toward FDP limits")",
+                calculationDetails: "Standby duty: \(factors.standbyType.rawValue). \(factors.standbyType == .homeStandby ? "FDP starts from report time with reduction based on standby duration" : "All standby time counts toward FDP limits")\(factors.standbyContactTime.isEmpty ? "" : ". Night standby: FDP reduction calculated from contact time")",
                 regulatoryBasis: "UK CAA Regulations: Standby Duty (CAP 371)",
-                factorValue: "\(factors.standbyType.rawValue)\(factors.standbyStartTime.isEmpty ? "" : " from \(factors.standbyStartTime)")",
+                factorValue: "\(factors.standbyType.rawValue)\(factors.standbyStartTime.isEmpty ? "" : " from \(factors.standbyStartTime)")\(factors.standbyContactTime.isEmpty ? "" : " (contacted at \(factors.standbyContactTime))")",
                 beforeAfter: ("Standard FDP start", factors.standbyType == .homeStandby ? "FDP reduction based on standby duration" : "Immediate FDP start"),
                 priority: 7,
                 dependencies: ["Base FDP limit", "Standby start time"]
@@ -1218,13 +1219,19 @@ extension DateFormatter {
 // MARK: - Time Utilities
 struct TimeUtilities {
     static func parseTime(_ timeString: String) -> Date? {
+        print("DEBUG: parseTime - Input timeString: '\(timeString)'")
+        
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         
         // Remove 'z' suffix if present (UTC indicator)
         let cleanTimeString = timeString.replacingOccurrences(of: "z", with: "")
+        print("DEBUG: parseTime - Cleaned timeString: '\(cleanTimeString)'")
         
-        return formatter.date(from: cleanTimeString)
+        let result = formatter.date(from: cleanTimeString)
+        print("DEBUG: parseTime - Parsed result: \(String(describing: result))")
+        
+        return result
     }
     
     static func formatTime(_ date: Date) -> String {
@@ -1234,31 +1241,45 @@ struct TimeUtilities {
     }
     
     static func calculateHoursBetween(_ startTime: String, _ endTime: String) -> Double {
+        print("DEBUG: calculateHoursBetween - startTime: '\(startTime)', endTime: '\(endTime)'")
+        
         guard let start = parseTime(startTime),
               let end = parseTime(endTime) else {
+            print("DEBUG: calculateHoursBetween - Failed to parse times")
             return 0.0
         }
+        
+        print("DEBUG: calculateHoursBetween - parsed start: \(start)")
+        print("DEBUG: calculateHoursBetween - parsed end: \(end)")
         
         let _ = Calendar.current
         
         // Check if end time is earlier than start time (overnight period)
         if end < start {
+            print("DEBUG: calculateHoursBetween - Overnight period detected (end < start)")
             // Add 24 hours to the end time to handle overnight periods
             let adjustedEnd = Calendar.current.date(byAdding: .day, value: 1, to: end) ?? end
+            print("DEBUG: calculateHoursBetween - Adjusted end: \(adjustedEnd)")
+            
             let components = Calendar.current.dateComponents([.hour, .minute], from: start, to: adjustedEnd)
             
             let hours = Double(components.hour ?? 0)
             let minutes = Double(components.minute ?? 0)
+            let result = hours + (minutes / 60.0)
             
-            return hours + (minutes / 60.0)
+            print("DEBUG: calculateHoursBetween - Overnight calculation result: \(result)h")
+            return result
         } else {
+            print("DEBUG: calculateHoursBetween - Same day calculation")
             // Same day calculation
             let components = Calendar.current.dateComponents([.hour, .minute], from: start, to: end)
             
             let hours = Double(components.hour ?? 0)
             let minutes = Double(components.minute ?? 0)
+            let result = hours + (minutes / 60.0)
             
-            return hours + (minutes / 60.0)
+            print("DEBUG: calculateHoursBetween - Same day calculation result: \(result)h")
+            return result
         }
     }
     
@@ -1773,20 +1794,56 @@ struct TimeUtilities {
     
     // Convert UTC time to local time using airport code
     static func getLocalTime(for utcTime: String, airportCode: String) -> String {
+        print("DEBUG: getLocalTime - Input utcTime: '\(utcTime)', airportCode: '\(airportCode)'")
+        
         guard let utcDate = parseTime(utcTime) else {
+            print("DEBUG: getLocalTime - Failed to parse UTC time")
             return utcTime
         }
         
         let timeZoneOffset = getTimeZoneOffsetFromUTC(for: airportCode)
+        print("DEBUG: getLocalTime - timeZoneOffset: \(timeZoneOffset) hours")
+        
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: utcDate)
         let minute = calendar.component(.minute, from: utcDate)
+        print("DEBUG: getLocalTime - UTC hour: \(hour), minute: \(minute)")
         
         // Add time zone offset to get local time
         let localHour = (hour + timeZoneOffset + 24) % 24 // Ensure 0-23 range
         let localMinute = minute
+        print("DEBUG: getLocalTime - Local hour: \(localHour), minute: \(localMinute)")
         
-        return String(format: "%02d:%02d", localHour, localMinute)
+        let result = String(format: "%02d:%02d", localHour, localMinute)
+        print("DEBUG: getLocalTime - Result: '\(result)'")
+        return result
+    }
+    
+    // Convert local time to UTC time using airport code
+    static func getUTCTime(for localTime: String, airportCode: String) -> String {
+        print("DEBUG: getUTCTime - Input localTime: '\(localTime)', airportCode: '\(airportCode)'")
+        
+        guard let localDate = parseTime(localTime) else {
+            print("DEBUG: getUTCTime - Failed to parse local time")
+            return localTime
+        }
+        
+        let timeZoneOffset = getTimeZoneOffsetFromUTC(for: airportCode)
+        print("DEBUG: getUTCTime - timeZoneOffset: \(timeZoneOffset) hours")
+        
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: localDate)
+        let minute = calendar.component(.minute, from: localDate)
+        print("DEBUG: getUTCTime - Local hour: \(hour), minute: \(minute)")
+        
+        // Subtract time zone offset to get UTC time
+        let utcHour = (hour - timeZoneOffset + 24) % 24 // Ensure 0-23 range
+        let utcMinute = minute
+        print("DEBUG: getUTCTime - UTC hour: \(utcHour), minute: \(utcMinute)")
+        
+        let result = String(format: "%02d:%02d", utcHour, utcMinute)
+        print("DEBUG: getUTCTime - Result: '\(result)'")
+        return result
     }
 }
 

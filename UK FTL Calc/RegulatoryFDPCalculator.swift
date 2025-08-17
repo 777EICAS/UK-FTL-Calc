@@ -22,6 +22,7 @@ struct FDPCalculationInput {
     let commanderDiscretionUsed: Bool
     let standbyStartTime: String?
     let standbyType: StandbyType?
+    let standbyContactTime: String? // NEW: Time when crew was contacted for night standby
     let dutyEndTime: String
     let flightTimes: [Double]? // Individual sector flight times for long flight detection
     let preCalculatedElapsedTime: Double? // NEW: Pre-calculated elapsed time from XML data
@@ -115,7 +116,7 @@ class RegulatoryFDPCalculator {
         
         // Step 7: Apply Standby Adjustments
         if let standbyType = input.standbyType, let standbyStartTime = input.standbyStartTime {
-            let standbyAdjustment = calculateStandbyAdjustment(input: input, standbyType: standbyType, standbyStartTime: standbyStartTime)
+            let standbyAdjustment = calculateStandbyAdjustment(input: input, standbyType: standbyType, standbyStartTime: standbyStartTime, standbyContactTime: input.standbyContactTime)
             if standbyAdjustment != 0 {
                 baseFDP += standbyAdjustment
                 adjustments["standby"] = standbyAdjustment
@@ -327,12 +328,12 @@ class RegulatoryFDPCalculator {
     
     // MARK: - Step 7: Standby Adjustments
     
-    private static func calculateStandbyAdjustment(input: FDPCalculationInput, standbyType: StandbyType, standbyStartTime: String) -> Double {
+    private static func calculateStandbyAdjustment(input: FDPCalculationInput, standbyType: StandbyType, standbyStartTime: String, standbyContactTime: String?) -> Double {
         switch standbyType {
         case .airportStandby:
             return calculateAirportStandbyAdjustment(input: input, standbyStartTime: standbyStartTime)
         case .homeStandby:
-            return calculateHomeStandbyAdjustment(input: input, standbyStartTime: standbyStartTime)
+            return calculateHomeStandbyAdjustment(input: input, standbyStartTime: standbyStartTime, standbyContactTime: standbyContactTime)
         }
     }
     
@@ -349,30 +350,68 @@ class RegulatoryFDPCalculator {
         return 0
     }
     
-    private static func calculateHomeStandbyAdjustment(input: FDPCalculationInput, standbyStartTime: String) -> Double {
+    private static func calculateHomeStandbyAdjustment(input: FDPCalculationInput, standbyStartTime: String, standbyContactTime: String?) -> Double {
         // Home standby: FDP starts from report time, not standby start time
-        // Calculate standby duration
-        let standbyDuration = TimeUtilities.calculateHoursBetween(standbyStartTime, input.reportTime)
+        
+        // Determine if this is night standby (starts between 23:00-07:00 local time)
+        let isNightStandby = isStandbyStartingInNightHours(standbyStartTime: standbyStartTime, timeZone: input.currentLocationTimeZone)
+        
+        // Calculate standby duration based on night standby rules
+        let standbyDuration: Double
+        if isNightStandby {
+            // Night standby: FDP reduction calculated from contact time to report time
+            if let contactTime = standbyContactTime {
+                standbyDuration = TimeUtilities.calculateHoursBetween(contactTime, input.reportTime)
+                print("DEBUG: Night standby detected - using contact time for FDP reduction calculation")
+                print("DEBUG: Contact time: \(contactTime), Report time: \(input.reportTime), Duration: \(standbyDuration)h")
+            } else {
+                // Fallback to standby start time if no contact time provided
+                standbyDuration = TimeUtilities.calculateHoursBetween(standbyStartTime, input.reportTime)
+                print("DEBUG: Night standby detected but no contact time provided - falling back to standby start time")
+                print("DEBUG: Standby start: \(standbyStartTime), Report time: \(input.reportTime), Duration: \(standbyDuration)h")
+            }
+        } else {
+            // Normal standby: FDP reduction calculated from standby start time to report time
+            standbyDuration = TimeUtilities.calculateHoursBetween(standbyStartTime, input.reportTime)
+            print("DEBUG: Normal standby - using standby start time for FDP reduction calculation")
+            print("DEBUG: Standby start: \(standbyStartTime), Report time: \(input.reportTime), Duration: \(standbyDuration)h")
+        }
         
         // Determine threshold (6 or 8 hours based on in-flight rest/split duty)
         let threshold = (input.inflightRestFacility != nil || input.hasSplitDuty) ? 8.0 : 6.0
         
-        // Apply night exclusion (23:00-07:00)
-        let effectiveStandbyTime = applyNightExclusion(standbyDuration: standbyDuration, standbyStartTime: standbyStartTime)
-        
-        // Apply FDP reduction logic
-        if effectiveStandbyTime <= threshold {
+        // Apply FDP reduction logic (same as before - only reduce if over threshold)
+        if standbyDuration <= threshold {
             return 0 // No reduction for early call
         } else {
-            return -(effectiveStandbyTime - threshold) // Negative adjustment
+            let reduction = -(standbyDuration - threshold)
+            print("DEBUG: Standby duration \(standbyDuration)h exceeds threshold \(threshold)h - applying reduction of \(reduction)h")
+            return reduction
         }
     }
     
-    private static func applyNightExclusion(standbyDuration: Double, standbyStartTime: String) -> Double {
-        // This is a simplified implementation
-        // In practice, this would need to calculate the exact time spent in 23:00-07:00 period
-        // For now, return the full duration
-        return standbyDuration
+    // Helper function to determine if standby starts during night hours (23:00-07:00)
+    private static func isStandbyStartingInNightHours(standbyStartTime: String, timeZone: String) -> Bool {
+        // Convert standby start time to local time zone
+        let localStandbyTime = convertToLocalTime(standbyStartTime, timeZone: timeZone)
+        
+        // Parse the local time to get hour
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        
+        guard let localDate = formatter.date(from: localStandbyTime) else {
+            print("DEBUG: Failed to parse local standby time: \(localStandbyTime)")
+            return false
+        }
+        
+        let hour = Calendar.current.component(.hour, from: localDate)
+        
+        // Night hours: 23:00-07:00 (23, 0, 1, 2, 3, 4, 5, 6)
+        let isNightHour = hour >= 23 || hour <= 6
+        
+        print("DEBUG: Standby start time: \(standbyStartTime) -> Local: \(localStandbyTime) -> Hour: \(hour) -> Night hours: \(isNightHour)")
+        
+        return isNightHour
     }
 }
 
