@@ -92,9 +92,8 @@ struct SplitDutyOptionsSheet: View {
                                 
                                 Button(action: { viewModel.showingBreakDurationPicker = true }) {
                                     HStack {
-                                        Text("\(String(format: "%.1f", viewModel.splitDutyBreakDuration))h")
+                                        Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.splitDutyBreakDuration))")
                                             .font(.subheadline)
-                                            .fontWeight(.semibold)
                                             .foregroundColor(.primary)
                                         
                                         Spacer()

@@ -81,10 +81,9 @@ struct AcclimatisationPickerSheet: View {
                         
                         // Max FDP Display
                         let maxFDP = viewModel.calculateMaxFDP()
-                        Text("Max FDP: \(String(format: "%.1f", maxFDP))h")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.blue)
+                        Text("Max FDP: \(TimeUtilities.formatHoursAndMinutes(maxFDP))")
+                            .font(.subheadline)
+                            .foregroundColor(.green)
                             .padding(.top, 8)
                         
                         // Sectors Info

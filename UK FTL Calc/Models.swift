@@ -574,7 +574,7 @@ struct UKCAALimits {
             locationText = "home base"
             reportTimeLimit = RegulatoryTableLookup.lookupFDPUnknownAcclimatised(sectors: factors.numberOfSectors)
         }
-        explanations.append("Report time \(factors.startTime) → Local \(localTime) at \(locationText) (\(factors.numberOfSectors) \(sectorText)): Base FDP limit \(String(format: "%.1f", reportTimeLimit))h")
+        explanations.append("Report time \(factors.startTime) → Local \(localTime) at \(locationText) (\(factors.numberOfSectors) \(sectorText)): Base FDP limit \(TimeUtilities.formatHoursAndMinutes(reportTimeLimit))")
         
         if factors.isEarlyStart {
             explanations.append("Early start (before 06:00): Reduced limits apply")
@@ -921,7 +921,7 @@ struct UKCAALimits {
                     impact: "Use home base local time for FDP calculation",
                     impactType: .base,
                     isActive: true,
-                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(String(format: "%.1f", factors.elapsedTimeHours))h since departure from home base",
+                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(TimeUtilities.formatHoursAndMinutes(factors.elapsedTimeHours)) since departure from home base",
                     regulatoryBasis: "UK CAA Table 1: Acclimatisation Status Determination",
                     factorValue: "Result B: Acclimatised to home base time zone",
                     beforeAfter: ("Table 3 limits", "Table 2 limits with home base local time"),
@@ -937,7 +937,7 @@ struct UKCAALimits {
                     impact: "Extended duty limits apply",
                     impactType: .extension,
                     isActive: true,
-                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(String(format: "%.1f", factors.elapsedTimeHours))h since departure from home base",
+                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(TimeUtilities.formatHoursAndMinutes(factors.elapsedTimeHours)) since departure from home base",
                     regulatoryBasis: "UK CAA Table 1: Acclimatisation Status Determination",
                     factorValue: "Result D: Acclimatised to departure location",
                     beforeAfter: ("Table 3 limits", "Table 2 limits"),
@@ -956,7 +956,7 @@ struct UKCAALimits {
                     impact: "Reduced duty limits apply (unknown state)",
                     impactType: .reduction,
                     isActive: true,
-                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(String(format: "%.1f", factors.elapsedTimeHours))h since departure from home base",
+                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(TimeUtilities.formatHoursAndMinutes(factors.elapsedTimeHours)) since departure from home base",
                     regulatoryBasis: "UK CAA Table 1: Acclimatisation Status Determination",
                     factorValue: "Result X: Unknown acclimatisation state",
                     beforeAfter: ("Table 2 limits", "Table 3 limits"),
@@ -972,7 +972,7 @@ struct UKCAALimits {
                     impact: "Reduced duty limits apply",
                     impactType: .reduction,
                     isActive: true,
-                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(String(format: "%.1f", factors.elapsedTimeHours))h since departure from home base",
+                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(TimeUtilities.formatHoursAndMinutes(factors.elapsedTimeHours)) since departure from home base",
                     regulatoryBasis: "UK CAA Table 1: Acclimatisation Status Determination",
                     factorValue: "Result A: Not acclimatised",
                     beforeAfter: ("Table 2 limits", "Table 3 limits"),
@@ -988,7 +988,7 @@ struct UKCAALimits {
                     impact: "Reduced duty limits apply",
                     impactType: .reduction,
                     isActive: true,
-                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(String(format: "%.1f", factors.elapsedTimeHours))h since departure from home base",
+                    calculationDetails: "Acclimatisation determined by UK CAA Table 1: Time zone difference \(factors.timeZoneDifference)h, elapsed time \(TimeUtilities.formatHoursAndMinutes(factors.elapsedTimeHours)) since departure from home base",
                     regulatoryBasis: "UK CAA Table 1: Acclimatisation Status Determination",
                     factorValue: "Result A: Not acclimatised",
                     beforeAfter: ("Table 2 limits", "Table 3 limits"),
@@ -1035,7 +1035,7 @@ struct UKCAALimits {
                 title: "Report Time",
                 description: "Report time \(factors.startTime) → Local \(localTime) at \(locationText)",
                 details: "\(factors.numberOfSectors) \(sectorText)",
-                impact: "Max FDP: \(maxFDP != nil ? TimeUtilities.formatHoursAndMinutes(maxFDP!) : String(format: "%.1f", reportTimeLimit) + "h")",
+                impact: "Max FDP: \(maxFDP != nil ? TimeUtilities.formatHoursAndMinutes(maxFDP!) : TimeUtilities.formatHoursAndMinutes(reportTimeLimit))",
                 impactType: .base,
                 isActive: true,
                 calculationDetails: "Base FDP limit determined from UK CAA Table 2 using local report time \(localTime) at \(locationText) for \(factors.numberOfSectors) \(sectorText)",

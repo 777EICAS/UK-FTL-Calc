@@ -388,7 +388,7 @@ class FTLViewModel: ObservableObject {
         takeoffTime = flight.takeoffTime
         landingTime = flight.landingTime
         dutyEndTime = flight.dutyEndTime
-        flightTime = String(format: "%.1f", flight.flightTime)
+        flightTime = TimeUtilities.formatHoursAndMinutes(flight.flightTime)
         isSelectedFlightOutbound = flight.isOutbound // Preserve the outbound status
         
         // Reset calculation state since we're switching flights

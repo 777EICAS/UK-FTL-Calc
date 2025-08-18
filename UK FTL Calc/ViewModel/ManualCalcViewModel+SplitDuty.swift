@@ -100,7 +100,7 @@ extension ManualCalcViewModel {
         let woclReduction = calculateWOCLEncroachment()
         
         if splitDutyAccommodationType == "Suitable Accomm" {
-            return (baseExtension, "Suitable accommodation: full 50% extension (\(String(format: "%.1f", baseExtension))h)")
+            return (baseExtension, "Suitable accommodation: full 50% extension (\(TimeUtilities.formatHoursAndMinutes(baseExtension)))")
         } else {
             var effectiveBreakTime = splitDutyBreakDuration
             var explanation = "Accommodation: "
@@ -108,17 +108,17 @@ extension ManualCalcViewModel {
             // 6-hour rule
             if effectiveBreakTime > 6.0 {
                 let overLimit = effectiveBreakTime - 6.0
-                explanation += "6h limit applied (exceeded by \(String(format: "%.1f", overLimit))h). "
+                explanation += "6h limit applied (exceeded by \(TimeUtilities.formatHoursAndMinutes(overLimit))). "
                 effectiveBreakTime = 6.0
             }
             
             // WOCL encroachment
             if woclReduction > 0 {
-                explanation += "WOCL encroachment: \(String(format: "%.1f", woclReduction))h excluded. "
+                explanation += "WOCL encroachment: \(TimeUtilities.formatHoursAndMinutes(woclReduction)) excluded. "
             }
             
             let finalExtension = effectiveBreakTime * 0.5
-            explanation += "Final extension: \(String(format: "%.1f", finalExtension))h (50% of \(String(format: "%.1f", effectiveBreakTime))h effective break time)"
+            explanation += "Final extension: \(TimeUtilities.formatHoursAndMinutes(finalExtension)) (50% of \(TimeUtilities.formatHoursAndMinutes(effectiveBreakTime)) effective break time)"
             
             return (finalExtension, explanation)
         }

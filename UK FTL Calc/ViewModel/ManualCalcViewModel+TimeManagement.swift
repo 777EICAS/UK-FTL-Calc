@@ -91,7 +91,7 @@ extension ManualCalcViewModel {
             baselineLabel = "Reporting Time"
         }
         
-        return "\(baselineTimeString)z (\(baselineLabel)) + \(String(format: "%.1f", totalFDP))h = \(timeString)z - \(String(format: "%.1f", estimatedBlockTime))h"
+        return "\(baselineTimeString)z (\(baselineLabel)) + \(TimeUtilities.formatHoursAndMinutes(totalFDP)) = \(timeString)z - \(TimeUtilities.formatHoursAndMinutes(estimatedBlockTime))"
     }
     
     func formatTimeAsUTC(_ date: Date) -> String {

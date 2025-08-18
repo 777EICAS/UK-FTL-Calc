@@ -104,10 +104,10 @@ struct LatestTimesSection: View {
                                     .foregroundColor(.secondary)
                             
                                 if viewModel.hasCalculated {
-                                    Text("\(String(format: "%.1f", viewModel.cachedTotalFDP))h")
+                                    Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.cachedTotalFDP))")
                                         .font(.title2)
                                         .fontWeight(.bold)
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(.green)
                                 } else {
                                     Text("--")
                                         .font(.subheadline)
@@ -158,10 +158,10 @@ struct LatestTimesSection: View {
                                     .foregroundColor(.secondary)
                                 
                                 if viewModel.hasCalculated {
-                                    Text("\(String(format: "%.1f", viewModel.cachedTotalFDP + viewModel.getCommandersDiscretionExtension()))h")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.primary)
+                                    Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.cachedTotalFDP + viewModel.getCommandersDiscretionExtension()))")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.blue)
                                 } else {
                                     Text("--")
                                         .font(.subheadline)
@@ -224,7 +224,7 @@ struct LatestTimesSection: View {
                                     .foregroundColor(.secondary)
                             
                                 if viewModel.hasCalculated {
-                                    Text("\(String(format: "%.1f", viewModel.calculationResults?.totalDutyTime ?? 0.0))h")
+                                    Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.calculationResults?.totalDutyTime ?? 0.0))")
                                         .font(.caption)
                                         .fontWeight(.medium)
                                         .foregroundColor(.primary)
@@ -278,7 +278,7 @@ struct LatestTimesSection: View {
                                     .foregroundColor(.secondary)
                             
                                 if viewModel.hasCalculated {
-                                    Text("\(String(format: "%.1f", (viewModel.calculationResults?.totalDutyTime ?? 0.0) + viewModel.getCommandersDiscretionExtension()))h")
+                                    Text("\(TimeUtilities.formatHoursAndMinutes((viewModel.calculationResults?.totalDutyTime ?? 0.0) + viewModel.getCommandersDiscretionExtension()))")
                                         .font(.caption)
                                         .fontWeight(.medium)
                                         .foregroundColor(.primary)

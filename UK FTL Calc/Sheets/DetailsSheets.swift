@@ -33,12 +33,12 @@ struct WithDiscretionDetailsSheet: View {
                             let baselineLabel = viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty" ? "Airport Duty Start" : "Reporting Time"
                             Text("• \(baselineLabel): \(viewModel.formatTimeForDisplay(baselineTime))")
                             if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
-                                Text("• In-Flight Rest FDP: \(String(format: "%.1f", viewModel.calculateInFlightRestExtension()))h")
-                                Text("• Max FDP: \(String(format: "%.1f", viewModel.calculateTotalFDP()))h (In-Flight Rest)")
+                                Text("• In-Flight Rest FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateInFlightRestExtension()))")
+                                Text("• Max FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalFDP())) (In-Flight Rest)")
                             } else {
-                                Text("• Max FDP: \(String(format: "%.1f", viewModel.calculateTotalFDP()))h")
+                                Text("• Max FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalFDP()))")
                             }
-                            Text("• Estimated Block Time: \(String(format: "%.1f", viewModel.estimatedBlockTime))h")
+                            Text("• Estimated Block Time: \(TimeUtilities.formatHoursAndMinutes(viewModel.estimatedBlockTime))")
                         }
                         .font(.subheadline)
                         .foregroundColor(.primary)
@@ -69,10 +69,10 @@ struct WithDiscretionDetailsSheet: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.orange)
                         
-                        Text("+\(String(format: "%.1f", viewModel.getCommandersDiscretionExtension()))h")
+                        Text("+\(TimeUtilities.formatHoursAndMinutes(viewModel.getCommandersDiscretionExtension()))")
                             .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.blue)
                         
                         if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
                             Text("With additional crew: +3 hours")
@@ -135,12 +135,12 @@ struct WithoutDiscretionDetailsSheet: View {
                             let baselineLabel = viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty" ? "Airport Duty Start" : "Reporting Time"
                             Text("• \(baselineLabel): \(viewModel.formatTimeForDisplay(baselineTime))")
                             if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
-                                Text("• Max FDP: \(String(format: "%.1f", viewModel.calculateInFlightRestExtension()))h")
-                                Text("• Max FDP: \(String(format: "%.1f", viewModel.calculateTotalFDP()))h (In-Flight Rest)")
+                                Text("• Max FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateInFlightRestExtension()))")
+                                Text("• Max FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalFDP())) (In-Flight Rest)")
                             } else {
-                                Text("• Max FDP: \(String(format: "%.1f", viewModel.calculateTotalFDP()))h")
+                                Text("• Max FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalFDP()))")
                             }
-                            Text("• Estimated Block Time: \(String(format: "%.1f", viewModel.estimatedBlockTime))h")
+                            Text("• Estimated Block Time: \(TimeUtilities.formatHoursAndMinutes(viewModel.estimatedBlockTime))")
                         }
                         .font(.subheadline)
                         .foregroundColor(.primary)
@@ -171,7 +171,7 @@ struct WithoutDiscretionDetailsSheet: View {
                             .fontWeight(.semibold)
                             .foregroundColor(.green)
                         
-                        Text("\(String(format: "%.1f", viewModel.calculateTotalFDP()))h")
+                        Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalFDP()))")
                             .font(.title2)
                             .fontWeight(.bold)
                             .foregroundColor(.green)
@@ -237,13 +237,13 @@ struct OnBlocksDetailsSheet: View {
                             let baselineLabel = viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty" ? "Airport Duty Start" : "Reporting Time"
                             Text("• \(baselineLabel): \(viewModel.formatTimeForDisplay(baselineTime))")
                             if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
-                                Text("• In-Flight Rest FDP: \(String(format: "%.1f", viewModel.calculateInFlightRestExtension()))h")
-                                Text("• Max FDP: \(String(format: "%.1f", viewModel.calculateTotalFDP()))h (In-Flight Rest)")
+                                Text("• In-Flight Rest FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateInFlightRestExtension()))")
+                                Text("• Max FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalFDP())) (In-Flight Rest)")
                             } else {
-                                Text("• Max FDP: \(String(format: "%.1f", viewModel.calculateTotalFDP()))h")
+                                Text("• Max FDP: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalFDP()))")
                             }
-                            Text("• Estimated Block Time: \(String(format: "%.1f", viewModel.estimatedBlockTime))h")
-                            Text("• Total Duty Time: \(String(format: "%.1f", viewModel.calculateTotalDutyTime()))h")
+                            Text("• Estimated Block Time: \(TimeUtilities.formatHoursAndMinutes(viewModel.estimatedBlockTime))")
+                            Text("• Total Duty Time: \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalDutyTime()))h")
                         }
                         .font(.subheadline)
                         .foregroundColor(.primary)
@@ -266,7 +266,7 @@ struct OnBlocksDetailsSheet: View {
                                 .foregroundColor(.green)
                             let baselineTime = viewModel.getBaselineTimeForCalculations()
                             let baselineLabel = viewModel.isStandbyEnabled && viewModel.selectedStandbyType == "Airport Duty" ? "Airport Duty Start" : "Reporting Time"
-                            Text("\(viewModel.formatTimeForDisplay(baselineTime))z (\(baselineLabel)) + \(String(format: "%.1f", viewModel.calculateTotalDutyTime(withCommandersDiscretion: false)))h = \(viewModel.formatTimeForDisplay(viewModel.calculateLatestOnBlocksTime(withCommandersDiscretion: false)))z")
+                            Text("\(viewModel.formatTimeForDisplay(baselineTime))z (\(baselineLabel)) + \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalDutyTime(withCommandersDiscretion: false)))h = \(viewModel.formatTimeForDisplay(viewModel.calculateLatestOnBlocksTime(withCommandersDiscretion: false)))z")
                                 .font(.subheadline)
                                 .foregroundColor(.primary)
                                 .padding()
@@ -277,7 +277,7 @@ struct OnBlocksDetailsSheet: View {
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundColor(.orange)
-                            Text("\(viewModel.formatTimeForDisplay(baselineTime))z (\(baselineLabel)) + \(String(format: "%.1f", viewModel.calculateTotalDutyTime(withCommandersDiscretion: true)))h = \(viewModel.formatTimeForDisplay(viewModel.calculateLatestOnBlocksTime(withCommandersDiscretion: true)))z")
+                            Text("\(viewModel.formatTimeForDisplay(baselineTime))z (\(baselineLabel)) + \(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalDutyTime(withCommandersDiscretion: true)))h = \(viewModel.formatTimeForDisplay(viewModel.calculateLatestOnBlocksTime(withCommandersDiscretion: true)))z")
                                 .font(.subheadline)
                                 .foregroundColor(.primary)
                                 .padding()
@@ -299,7 +299,7 @@ struct OnBlocksDetailsSheet: View {
                                     .font(.subheadline)
                                     .foregroundColor(.green)
                                 Spacer()
-                                Text("\(String(format: "%.1f", viewModel.calculateTotalDutyTime(withCommandersDiscretion: false)))h")
+                                Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalDutyTime(withCommandersDiscretion: false)))")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                     .foregroundColor(.green)
@@ -310,7 +310,7 @@ struct OnBlocksDetailsSheet: View {
                                     .font(.subheadline)
                                     .foregroundColor(.orange)
                                 Spacer()
-                                Text("\(String(format: "%.1f", viewModel.calculateTotalDutyTime(withCommandersDiscretion: true)))h")
+                                Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.calculateTotalDutyTime(withCommandersDiscretion: true)))")
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                     .foregroundColor(.orange)

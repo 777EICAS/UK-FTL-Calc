@@ -35,10 +35,10 @@ struct FDPResultsSection: View {
                             .foregroundColor(.secondary)
                         
                         if viewModel.hasCalculated {
-                            Text("\(String(format: "%.1f", viewModel.cachedMaxFDP))h")
+                            Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.cachedMaxFDP))")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.primary)
+                                .foregroundColor(.green)
                         } else {
                             Text("Press Calculate to see results")
                                 .font(.subheadline)
@@ -96,18 +96,18 @@ struct FDPResultsSection: View {
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Standby Duration: \(String(format: "%.1f", standbyDuration))h")
-                                .font(.caption)
+                            Text("Standby Duration: \(TimeUtilities.formatHoursAndMinutes(standbyDuration))")
+                                .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
-                            Text("Threshold: \(String(format: "%.1f", thresholdHours))h (\(viewModel.hasInFlightRest && viewModel.restFacilityType != .none ? "In-Flight Rest" : viewModel.hasSplitDuty ? "Split Duty" : "Standard"))")
-                                .font(.caption)
+                            Text("Threshold: \(TimeUtilities.formatHoursAndMinutes(thresholdHours)) (\(viewModel.hasInFlightRest && viewModel.restFacilityType != .none ? "In-Flight Rest" : viewModel.hasSplitDuty ? "Split Duty" : "Standard"))")
+                                .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
                             if standbyDuration > thresholdHours {
                                 let reduction = standbyDuration - thresholdHours
-                                Text("FDP Reduction: -\(String(format: "%.1f", reduction))h")
-                                    .font(.caption)
+                                Text("FDP Reduction: -\(TimeUtilities.formatHoursAndMinutes(reduction))")
+                                    .font(.subheadline)
                                     .foregroundColor(.orange)
                                     .fontWeight(.medium)
                                 
@@ -115,14 +115,14 @@ struct FDPResultsSection: View {
                                 if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
                                     let inFlightRestFDP = viewModel.cachedInFlightRestExtension
                                     let finalFDP = inFlightRestFDP - reduction
-                                    Text("In-Flight Rest FDP: \(String(format: "%.1f", inFlightRestFDP))h - \(String(format: "%.1f", reduction))h = \(String(format: "%.1f", finalFDP))h")
+                                    Text("In-Flight Rest FDP: \(TimeUtilities.formatHoursAndMinutes(inFlightRestFDP)) - \(TimeUtilities.formatHoursAndMinutes(reduction)) = \(TimeUtilities.formatHoursAndMinutes(finalFDP))")
                                         .font(.caption)
                                         .foregroundColor(.blue)
                                         .fontWeight(.medium)
                                 }
                             }
                             
-                            Text("Total Awake Time: \(String(format: "%.1f", totalAwakeTime))h / 18h")
+                            Text("Total Awake Time: \(TimeUtilities.formatHoursAndMinutes(totalAwakeTime)) / 18h")
                                 .font(.caption)
                                 .foregroundColor(totalAwakeTime > 18.0 ? .red : .green)
                                 .fontWeight(.medium)
@@ -147,7 +147,7 @@ struct FDPResultsSection: View {
                                 .fontWeight(.medium)
                                 .foregroundColor(.secondary)
                             
-                            Text("\(String(format: "%.1f", viewModel.cachedInFlightRestExtension))h")
+                            Text("\(TimeUtilities.formatHoursAndMinutes(viewModel.cachedInFlightRestExtension))")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.blue)
@@ -189,10 +189,10 @@ struct FDPResultsSection: View {
                                 .fontWeight(.medium)
                                 .foregroundColor(.secondary)
                             
-                            Text("\(String(format: "%.1f", splitDutyDetails.extension))h")
+                            Text("\(TimeUtilities.formatHoursAndMinutes(splitDutyDetails.extension))")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.orange)
+                                .foregroundColor(.purple)
                         }
                         
                         Spacer()
@@ -232,8 +232,8 @@ struct FDPResultsSection: View {
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Break Duration: \(String(format: "%.1f", viewModel.splitDutyBreakDuration))h")
-                                .font(.caption)
+                            Text("Break Duration: \(TimeUtilities.formatHoursAndMinutes(viewModel.splitDutyBreakDuration))")
+                                .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
                             if viewModel.splitDutyAccommodationType == "Accommodation" {
@@ -263,10 +263,10 @@ struct FDPResultsSection: View {
                             .foregroundColor(.secondary)
                         
                         let totalFDP = viewModel.cachedTotalFDP
-                        Text("\(String(format: "%.1f", totalFDP))h")
-                            .font(.title)
+                        Text("\(TimeUtilities.formatHoursAndMinutes(totalFDP))")
+                            .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundColor(.blue)
+                            .foregroundColor(.green)
                         
                         // Show breakdown if extensions are applied
                         if (viewModel.hasInFlightRest && viewModel.restFacilityType != .none) || viewModel.hasSplitDuty {
@@ -312,16 +312,20 @@ struct FDPResultsSection: View {
     
     // MARK: - Helper Functions
     private func getFDPBreakdown(baseFDP: Double) -> String {
-        var breakdown = "Base: \(String(format: "%.1f", baseFDP))h"
+        var breakdown = "Base: \(TimeUtilities.formatHoursAndMinutes(baseFDP))"
         
         if viewModel.hasInFlightRest && viewModel.restFacilityType != .none {
             let inFlightRestExtension = viewModel.cachedInFlightRestExtension - baseFDP
-            breakdown += " + In-Flight Rest: +\(String(format: "%.1f", inFlightRestExtension))h"
+            if inFlightRestExtension > 0 {
+                breakdown += " + In-Flight Rest: +\(TimeUtilities.formatHoursAndMinutes(inFlightRestExtension))"
+            }
         }
         
         if viewModel.hasSplitDuty {
             let splitDutyExtension = viewModel.calculateSplitDutyExtension()
-            breakdown += " + Split Duty: +\(String(format: "%.1f", splitDutyExtension))h"
+            if splitDutyExtension > 0 {
+                breakdown += " + Split Duty: +\(TimeUtilities.formatHoursAndMinutes(splitDutyExtension))"
+            }
         }
         
         return breakdown
