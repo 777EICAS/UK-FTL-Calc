@@ -17,6 +17,7 @@ struct UserSettings: View {
     @State private var showingSecondHomeBasePicker = false
     @State private var showingAirlinePicker = false
     @State private var showingSettings = false
+    @State private var showingDeleteAccountSheet = false
     
     var body: some View {
         NavigationView {
@@ -292,8 +293,45 @@ struct UserSettings: View {
                     }
                 }
                 .padding()
+                
+                // Delete Account Section
+                VStack(spacing: 16) {
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Danger Zone")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.red)
+                        
+                        Text("Once you delete your account, there is no going back. Please be certain.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Button(action: {
+                        showingDeleteAccountSheet = true
+                    }) {
+                        Text("Delete Account")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.red, lineWidth: 1)
+                            )
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                }
+                .padding()
+                .background(Color(.systemGroupedBackground))
             }
-            .background(Color(.systemGroupedBackground))
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -327,6 +365,9 @@ struct UserSettings: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsPopupView(autoSaveFlights: $autoSaveFlights)
+            }
+            .sheet(isPresented: $showingDeleteAccountSheet) {
+                DeleteAccountSheet()
             }
         }
     }

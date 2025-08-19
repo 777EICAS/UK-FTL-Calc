@@ -7,6 +7,29 @@ extension Notification.Name {
     static let authenticationStateChanged = Notification.Name("authenticationStateChanged")
 }
 
+// MARK: - Custom Error Types
+enum AuthError: LocalizedError {
+    case userNotFound
+    case invalidPassword
+    case emailNotConfirmed
+    case profileCreationFailed
+    
+    var errorDescription: String? {
+        switch self {
+        case .userNotFound:
+            return "User not found"
+        case .invalidPassword:
+            return "Invalid password"
+        case .emailNotConfirmed:
+            return "Please confirm your email before signing in"
+        case .profileCreationFailed:
+            return "Failed to create user profile"
+        }
+    }
+}
+
+
+
 @MainActor
 class AuthenticationService: ObservableObject {
     @Published var isAuthenticated = false
@@ -24,6 +47,11 @@ class AuthenticationService: ObservableObject {
         // User will be checked when they explicitly sign in
         // Check if user has completed profile setup
         hasCompletedProfileSetup = UserDefaults.standard.bool(forKey: "hasCompletedProfileSetup")
+        
+        // TEMPORARY: Reset profile completion for testing new user flow
+        // TODO: Remove this line after testing
+        UserDefaults.standard.set(false, forKey: "hasCompletedProfileSetup")
+        hasCompletedProfileSetup = false
     }
     
     func signUp(email: String, password: String, firstName: String, lastName: String) async {
@@ -82,7 +110,7 @@ class AuthenticationService: ObservableObject {
             print("DEBUG: User properties - confirmedAt: \(String(describing: user.confirmedAt))")
             
             // Try different ways to check email confirmation
-            let isEmailConfirmed = user.emailConfirmedAt != nil || user.confirmedAt != nil
+            let _ = user.emailConfirmedAt != nil || user.confirmedAt != nil
             
             // TEMPORARY: Allow sign in regardless of email confirmation for testing
             print("DEBUG: Email confirmation check - emailConfirmedAt: \(String(describing: user.emailConfirmedAt)), confirmedAt: \(String(describing: user.confirmedAt))")
@@ -92,11 +120,12 @@ class AuthenticationService: ObservableObject {
             await loadUserProfile(userId: user.id)
             
             // Check if user has completed profile setup
-            let hasHomeBase = !(UserDefaults.standard.string(forKey: "homeBase") ?? "").isEmpty
-            if hasHomeBase {
-                hasCompletedProfileSetup = true
-                UserDefaults.standard.set(true, forKey: "hasCompletedProfileSetup")
-            }
+            // For new users, hasCompletedProfileSetup should start as false
+            // Only existing users who have previously completed setup should be marked as complete
+            let storedCompletionStatus = UserDefaults.standard.bool(forKey: "hasCompletedProfileSetup")
+            hasCompletedProfileSetup = storedCompletionStatus
+            
+            print("DEBUG: Profile setup status - stored: \(storedCompletionStatus), setting hasCompletedProfileSetup to: \(hasCompletedProfileSetup)")
             
             // Update state on main thread to ensure UI updates
             await MainActor.run {
@@ -153,6 +182,60 @@ class AuthenticationService: ObservableObject {
         UserDefaults.standard.set(true, forKey: "hasCompletedProfileSetup")
     }
     
+    func deleteAccount(password: String) async throws {
+        guard let user = currentUser else {
+            throw AuthError.userNotFound
+        }
+        
+        // First, verify the password by attempting to sign in
+        do {
+            let _ = try await supabase.auth.signIn(
+                email: user.email ?? "",
+                password: password
+            )
+        } catch {
+            throw AuthError.invalidPassword
+        }
+        
+        // Delete user profile from database
+        do {
+            try await supabase
+                .from("profiles")
+                .delete()
+                .eq("id", value: user.id)
+                .execute()
+        } catch {
+            print("DEBUG: Failed to delete profile from database: \(error)")
+            // Continue with account deletion even if profile deletion fails
+        }
+        
+        // Delete the user account
+        try await supabase.auth.admin.deleteUser(id: user.id, shouldSoftDelete: false)
+        
+        // Clear all local data
+        clearAllLocalData()
+        
+        // Update state
+        await MainActor.run {
+            self.isAuthenticated = false
+            self.currentUser = nil
+            self.hasCompletedProfileSetup = false
+        }
+        
+        // Post notification to trigger UI update
+        NotificationCenter.default.post(name: .authenticationStateChanged, object: nil)
+    }
+    
+    private func clearAllLocalData() {
+        // Clear all UserDefaults
+        if let bundleID = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleID)
+        }
+        
+        // Reset specific flags
+        UserDefaults.standard.set(false, forKey: "hasCompletedProfileSetup")
+    }
+    
     func resendConfirmationEmail(email: String) async {
         isLoading = true
         errorMessage = nil
@@ -203,17 +286,4 @@ class AuthenticationService: ObservableObject {
     }
 }
 
-// MARK: - Custom Errors
-enum AuthError: LocalizedError {
-    case userNotFound
-    case profileCreationFailed
-    
-    var errorDescription: String? {
-        switch self {
-        case .userNotFound:
-            return "User account not found"
-        case .profileCreationFailed:
-            return "Failed to create user profile"
-        }
-    }
-}
+
