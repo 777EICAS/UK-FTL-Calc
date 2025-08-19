@@ -13,6 +13,7 @@ class AuthenticationService: ObservableObject {
     @Published var currentUser: User?
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var hasCompletedProfileSetup = false
     
     private var supabase: SupabaseClient {
         SupabaseConfig.shared.client
@@ -21,6 +22,8 @@ class AuthenticationService: ObservableObject {
     init() {
         // Don't auto-check current user on init to avoid race conditions
         // User will be checked when they explicitly sign in
+        // Check if user has completed profile setup
+        hasCompletedProfileSetup = UserDefaults.standard.bool(forKey: "hasCompletedProfileSetup")
     }
     
     func signUp(email: String, password: String, firstName: String, lastName: String) async {
@@ -28,10 +31,14 @@ class AuthenticationService: ObservableObject {
         errorMessage = nil
         
         do {
-            // Create user account
+            // Create user account with metadata
             let authResponse = try await supabase.auth.signUp(
                 email: email,
-                password: password
+                password: password,
+                data: [
+                    "first_name": AnyJSON.string(firstName),
+                    "last_name": AnyJSON.string(lastName)
+                ]
             )
             
             let user = authResponse.user
@@ -71,7 +78,7 @@ class AuthenticationService: ObservableObject {
             
             // Check if email is confirmed - try different properties
             print("DEBUG: User properties - emailConfirmedAt: \(String(describing: user.emailConfirmedAt))")
-            print("DEBUG: User properties - email: \(user.email)")
+            print("DEBUG: User properties - email: \(String(describing: user.email))")
             print("DEBUG: User properties - confirmedAt: \(String(describing: user.confirmedAt))")
             
             // Try different ways to check email confirmation
@@ -83,6 +90,13 @@ class AuthenticationService: ObservableObject {
             
             // Load user profile
             await loadUserProfile(userId: user.id)
+            
+            // Check if user has completed profile setup
+            let hasHomeBase = !(UserDefaults.standard.string(forKey: "homeBase") ?? "").isEmpty
+            if hasHomeBase {
+                hasCompletedProfileSetup = true
+                UserDefaults.standard.set(true, forKey: "hasCompletedProfileSetup")
+            }
             
             // Update state on main thread to ensure UI updates
             await MainActor.run {
@@ -132,6 +146,11 @@ class AuthenticationService: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+    
+    func markProfileSetupComplete() {
+        hasCompletedProfileSetup = true
+        UserDefaults.standard.set(true, forKey: "hasCompletedProfileSetup")
     }
     
     func resendConfirmationEmail(email: String) async {

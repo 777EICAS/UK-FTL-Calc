@@ -28,9 +28,25 @@ struct UserSettings: View {
                             .font(.system(size: 60))
                             .foregroundColor(.blue)
                         
-                        Text("Pilot Profile")
-                            .font(.title2)
-                            .fontWeight(.bold)
+                        // Welcome message with user's name
+                        if let user = authService.currentUser {
+                            VStack(spacing: 4) {
+                                Text("Welcome back!")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                
+                                let firstName = user.userMetadata["first_name"]?.stringValue ?? ""
+                                let lastName = user.userMetadata["last_name"]?.stringValue ?? ""
+                                Text("\(firstName) \(lastName)")
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.blue)
+                            }
+                        } else {
+                            Text("Pilot Profile")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
                         
                         Text("Configure your home bases and time zones")
                             .font(.subheadline)
@@ -247,6 +263,32 @@ struct UserSettings: View {
                         .padding()
                         .background(Color(.systemBackground))
                         .cornerRadius(12)
+                    }
+                    
+                    // Save Profile Button
+                    VStack(spacing: 12) {
+                        Button(action: {
+                            // Profile data is automatically saved via @AppStorage
+                            // Show a brief confirmation
+                            // You could add a toast notification here if desired
+                        }) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Profile Saved")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                        }
+                        .disabled(homeBase.isEmpty)
+                        
+                        Text("Your profile settings are automatically saved")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
                     }
                 }
                 .padding()

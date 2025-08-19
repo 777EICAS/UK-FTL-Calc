@@ -44,63 +44,69 @@ struct ContentView: View {
         Group {
             // Debug info
             let _ = print("DEBUG: ContentView - authService.isAuthenticated: \(authService.isAuthenticated)")
+            let _ = print("DEBUG: ContentView - hasCompletedProfileSetup: \(authService.hasCompletedProfileSetup)")
             
             if authService.isAuthenticated {
-                // Main app content - user is logged in
-                TabView(selection: $selectedTab) {
-                    // Manual Calc Tab
-                    ManualCalcView()
-                        .tabItem {
-                            Image(systemName: "pencil.and.outline")
-                                .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
-                            Text("Manual Calc")
-                        }
-                        .tag(0)
-                    
-                    // Main FTL Calculator Tab
-                    mainCalculatorView
-                        .tabItem {
-                            Image(systemName: "airplane")
-                                .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
-                            Text("FTL Calculator")
-                        }
-                        .tag(1)
-                    
-                    // Calendar Tab
-                    CalendarView()
-                        .tabItem {
-                            Image(systemName: "calendar")
-                                .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
-                            Text("Calendar")
-                        }
-                        .tag(2)
-                    
-                    // Profile Tab
-                    UserSettings()
-                        .tabItem {
-                            Image(systemName: "person.circle")
-                                .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
-                            Text("Profile")
-                        }
-                        .tag(3)
-                }
-                .accentColor(.blue)
-                .onAppear {
-                    // Custom tab bar styling with background for better visibility
-                    let appearance = UITabBarAppearance()
-                    appearance.configureWithDefaultBackground()
-                    appearance.backgroundColor = UIColor.systemBackground
-                    
-                    // Set the tab bar appearance
-                    UITabBar.appearance().standardAppearance = appearance
-                    UITabBar.appearance().scrollEdgeAppearance = appearance
-                    
-                    // Add subtle shadow for floating effect
-                    UITabBar.appearance().layer.shadowColor = UIColor.black.cgColor
-                    UITabBar.appearance().layer.shadowOffset = CGSize(width: 0, height: -2)
-                    UITabBar.appearance().layer.shadowRadius = 8
-                    UITabBar.appearance().layer.shadowOpacity = 0.1
-                    UITabBar.appearance().layer.masksToBounds = false
+                if authService.hasCompletedProfileSetup {
+                    // Main app content - user is logged in and has completed profile setup
+                    TabView(selection: $selectedTab) {
+                        // Manual Calc Tab
+                        ManualCalcView()
+                            .tabItem {
+                                Image(systemName: "pencil.and.outline")
+                                    .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
+                                Text("Manual Calc")
+                            }
+                            .tag(0)
+                        
+                        // Main FTL Calculator Tab
+                        mainCalculatorView
+                            .tabItem {
+                                Image(systemName: "airplane")
+                                    .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
+                                Text("FTL Calculator")
+                            }
+                            .tag(1)
+                        
+                        // Calendar Tab
+                        CalendarView()
+                            .tabItem {
+                                Image(systemName: "calendar")
+                                    .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
+                                Text("Calendar")
+                            }
+                            .tag(2)
+                        
+                        // Profile Tab
+                        UserSettings()
+                            .tabItem {
+                                Image(systemName: "person.circle")
+                                    .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
+                                Text("Profile")
+                            }
+                            .tag(3)
+                    }
+                    .accentColor(.blue)
+                    .onAppear {
+                        // Custom tab bar styling with background for better visibility
+                        let appearance = UITabBarAppearance()
+                        appearance.configureWithDefaultBackground()
+                        appearance.backgroundColor = UIColor.systemBackground
+                        
+                        // Set the tab bar appearance
+                        UITabBar.appearance().standardAppearance = appearance
+                        UITabBar.appearance().scrollEdgeAppearance = appearance
+                        
+                        // Add subtle shadow for floating effect
+                        UITabBar.appearance().layer.shadowColor = UIColor.black.cgColor
+                        UITabBar.appearance().layer.shadowOffset = CGSize(width: 0, height: -2)
+                        UITabBar.appearance().layer.shadowRadius = 8
+                        UITabBar.appearance().layer.shadowOpacity = 0.1
+                        UITabBar.appearance().layer.masksToBounds = false
+                    }
+                } else {
+                    // First-time user - show profile completion view
+                    ProfileCompletionView()
                 }
             } else {
                 // Authentication view - user needs to log in
