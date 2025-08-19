@@ -37,7 +37,11 @@ extension ManualCalcViewModel {
             
             // WOCL encroachment check (02:00-05:59 local time where user is acclimatised)
             let woclReduction = calculateWOCLEncroachment()
-            effectiveBreakTime = max(0.0, effectiveBreakTime - woclReduction)
+            let effectiveBreakTimeBeforeWOCL = calculateEffectiveBreakTimeBeforeWOCL()
+            
+            // Use the more restrictive of the two calculations
+            effectiveBreakTime = min(effectiveBreakTime - woclReduction, effectiveBreakTimeBeforeWOCL)
+            effectiveBreakTime = max(0.0, effectiveBreakTime)
             
             let finalExtension = effectiveBreakTime * 0.5
             
@@ -81,8 +85,9 @@ extension ManualCalcViewModel {
         }
         
         // Check if break extends past WOCL into next day
-        if breakEndHour > breakBeginHour && breakEndHour > 6 {
-            // Break extends past WOCL, check if it goes into next day's WOCL
+        // Only apply if break actually crosses midnight (breakEndHour < breakBeginHour)
+        if breakEndHour < breakBeginHour {
+            // Break crosses midnight, check if it goes into next day's WOCL
             let nextDayWOCLStart = 2
             let nextDayWOCLEnd = min(6, breakEndHour)
             if nextDayWOCLEnd > nextDayWOCLStart {
@@ -91,6 +96,37 @@ extension ManualCalcViewModel {
         }
         
         return woclEncroachment
+    }
+    
+    /// Calculates the effective break time that occurs before WOCL begins
+    /// This ensures that only the portion of the break before 02:00 local time counts
+    private func calculateEffectiveBreakTimeBeforeWOCL() -> Double {
+        guard splitDutyAccommodationType == "Accommodation" else { return splitDutyBreakDuration }
+        
+        // Get the local time at the user's acclimatised location
+        let currentDeparture = selectedReportingLocation.isEmpty ? homeBase : selectedReportingLocation
+        let breakBeginTimeString = utcTimeFormatter.string(from: splitDutyBreakBegin)
+        let localBreakBeginTime = TimeUtilities.getLocalTime(for: breakBeginTimeString, airportCode: currentDeparture)
+        
+        // Parse local time to get hour and minute
+        let timeComponents = localBreakBeginTime.split(separator: ":")
+        let breakBeginHour = Int(timeComponents[0]) ?? 0
+        let breakBeginMinute = Int(timeComponents[1]) ?? 0
+        
+        // Convert to minutes for precise calculation
+        let breakBeginMinutes = breakBeginHour * 60 + breakBeginMinute
+        let woclStartMinutes = 2 * 60 // 02:00 = 120 minutes
+        
+        // If break starts at or after WOCL, no effective time before WOCL
+        if breakBeginMinutes >= woclStartMinutes {
+            return 0.0
+        }
+        
+        // Calculate how much time is available before WOCL
+        let timeBeforeWOCL = woclStartMinutes - breakBeginMinutes
+        
+        // Convert back to hours
+        return Double(timeBeforeWOCL) / 60.0
     }
     
     func getSplitDutyExtensionDetails() -> (extension: Double, explanation: String) {
@@ -117,8 +153,12 @@ extension ManualCalcViewModel {
                 explanation += "WOCL encroachment: \(TimeUtilities.formatHoursAndMinutes(woclReduction)) excluded. "
             }
             
-            let finalExtension = effectiveBreakTime * 0.5
-            explanation += "Final extension: \(TimeUtilities.formatHoursAndMinutes(finalExtension)) (50% of \(TimeUtilities.formatHoursAndMinutes(effectiveBreakTime)) effective break time)"
+            // Calculate effective break time using the more restrictive method
+            let effectiveBreakTimeBeforeWOCL = calculateEffectiveBreakTimeBeforeWOCL()
+            let finalEffectiveBreakTime = min(effectiveBreakTime, effectiveBreakTimeBeforeWOCL)
+            
+            let finalExtension = finalEffectiveBreakTime * 0.5
+            explanation += "Final extension: \(TimeUtilities.formatHoursAndMinutes(finalExtension)) (50% of \(TimeUtilities.formatHoursAndMinutes(finalEffectiveBreakTime)) effective break time)"
             
             return (finalExtension, explanation)
         }
