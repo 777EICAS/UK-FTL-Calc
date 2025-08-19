@@ -14,7 +14,9 @@ import EventKit
 
 struct ContentView: View {
     @StateObject private var viewModel = FTLViewModel()
+    @EnvironmentObject var authService: AuthenticationService
     @State private var showingCalendarImport = false
+
     @State private var showingSettings = false
 
     @State private var showingFileUpload = false
@@ -39,70 +41,73 @@ struct ContentView: View {
     @AppStorage("secondHomeBase") private var secondHomeBase: String = ""
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // Manual Calc Tab
-            ManualCalcView()
-                .tabItem {
-                    Image(systemName: "pencil.and.outline")
-                        .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
-                    Text("Manual Calc")
-                }
-                .tag(0)
+        Group {
+            // Debug info
+            let _ = print("DEBUG: ContentView - authService.isAuthenticated: \(authService.isAuthenticated)")
             
-            // Main FTL Calculator Tab
-            mainCalculatorView
-                .tabItem {
-                    Image(systemName: "airplane")
-                        .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
-                    Text("FTL Calculator")
+            if authService.isAuthenticated {
+                // Main app content - user is logged in
+                TabView(selection: $selectedTab) {
+                    // Manual Calc Tab
+                    ManualCalcView()
+                        .tabItem {
+                            Image(systemName: "pencil.and.outline")
+                                .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
+                            Text("Manual Calc")
+                        }
+                        .tag(0)
+                    
+                    // Main FTL Calculator Tab
+                    mainCalculatorView
+                        .tabItem {
+                            Image(systemName: "airplane")
+                                .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
+                            Text("FTL Calculator")
+                        }
+                        .tag(1)
+                    
+                    // Calendar Tab
+                    CalendarView()
+                        .tabItem {
+                            Image(systemName: "calendar")
+                                .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
+                            Text("Calendar")
+                        }
+                        .tag(2)
+                    
+                    // Profile Tab
+                    UserSettings()
+                        .tabItem {
+                            Image(systemName: "person.circle")
+                                .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
+                            Text("Profile")
+                        }
+                        .tag(3)
                 }
-                .tag(1)
-            
-            // Calendar Tab
-            CalendarView()
-                .tabItem {
-                    Image(systemName: "calendar")
-                        .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
-                    Text("Calendar")
+                .accentColor(.blue)
+                .onAppear {
+                    // Custom tab bar styling with background for better visibility
+                    let appearance = UITabBarAppearance()
+                    appearance.configureWithDefaultBackground()
+                    appearance.backgroundColor = UIColor.systemBackground
+                    
+                    // Set the tab bar appearance
+                    UITabBar.appearance().standardAppearance = appearance
+                    UITabBar.appearance().scrollEdgeAppearance = appearance
+                    
+                    // Add subtle shadow for floating effect
+                    UITabBar.appearance().layer.shadowColor = UIColor.black.cgColor
+                    UITabBar.appearance().layer.shadowOffset = CGSize(width: 0, height: -2)
+                    UITabBar.appearance().layer.shadowRadius = 8
+                    UITabBar.appearance().layer.shadowOpacity = 0.1
+                    UITabBar.appearance().layer.masksToBounds = false
                 }
-                .tag(2)
-            
-            // Settings Tab
-            SettingsView()
-                .tabItem {
-                    Image(systemName: "gearshape")
-                        .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
-                    Text("Settings")
-                }
-                .tag(3)
-            
-            // Profile Tab
-            UserSettings()
-                .tabItem {
-                    Image(systemName: "person.circle")
-                        .environment(\.symbolVariants, selectedTab == 4 ? .fill : .none)
-                    Text("Profile")
-                }
-                .tag(4)
+            } else {
+                // Authentication view - user needs to log in
+                LoginView()
+            }
         }
-        .accentColor(.blue)
-        .onAppear {
-            // Custom tab bar styling with background for better visibility
-            let appearance = UITabBarAppearance()
-            appearance.configureWithDefaultBackground()
-            appearance.backgroundColor = UIColor.systemBackground
-            
-            // Set the tab bar appearance
-            UITabBar.appearance().standardAppearance = appearance
-            UITabBar.appearance().scrollEdgeAppearance = appearance
-            
-            // Add subtle shadow for floating effect
-            UITabBar.appearance().layer.shadowColor = UIColor.black.cgColor
-            UITabBar.appearance().layer.shadowOffset = CGSize(width: 0, height: -2)
-            UITabBar.appearance().layer.shadowRadius = 8
-            UITabBar.appearance().layer.shadowOpacity = 0.1
-            UITabBar.appearance().layer.masksToBounds = false
-        }
+
     }
     
     // MARK: - Trip Context Detection

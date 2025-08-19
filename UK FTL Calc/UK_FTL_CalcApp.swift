@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct UK_FTL_CalcApp: App {
+    @StateObject private var authService = AuthenticationService()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(authService)
         }
     }
 }

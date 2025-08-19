@@ -8,12 +8,15 @@
 import SwiftUI
 
 struct UserSettings: View {
+    @EnvironmentObject var authService: AuthenticationService
     @AppStorage("homeBase") private var homeBase: String = ""
     @AppStorage("secondHomeBase") private var secondHomeBase: String = ""
     @AppStorage("airline") private var airline: String = ""
+    @AppStorage("autoSaveFlights") private var autoSaveFlights = true
     @State private var showingHomeBasePicker = false
     @State private var showingSecondHomeBasePicker = false
     @State private var showingAirlinePicker = false
+    @State private var showingSettings = false
     
     var body: some View {
         NavigationView {
@@ -32,6 +35,23 @@ struct UserSettings: View {
                         Text("Configure your home bases and time zones")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+                        
+                        // Sign Out Button
+                        Button(action: {
+                            Task {
+                                await authService.signOut()
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                Text("Sign Out")
+                            }
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                        }
                     }
                     .padding(.top)
                     
@@ -159,42 +179,42 @@ struct UserSettings: View {
                     .background(Color(.systemBackground))
                     .cornerRadius(12)
                     
-                    // Current Time Display
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Current Local Times")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        
-                        VStack(spacing: 12) {
-                            // Primary Home Base Time (only show if selected)
-                            if !homeBase.isEmpty {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Primary Home Base")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text(homeBase)
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
+                    // Time Zone Display
+                    if !homeBase.isEmpty || !secondHomeBase.isEmpty {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Current Local Times")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            VStack(spacing: 12) {
+                                if !homeBase.isEmpty {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Primary Home Base")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            Text(homeBase)
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        VStack(alignment: .trailing, spacing: 4) {
+                                            Text("Local Time")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            Text(getLocalTime(for: homeBase))
+                                                .font(.title3)
+                                                .fontWeight(.semibold)
+                                                .foregroundColor(.blue)
+                                        }
                                     }
-                                    
-                                    Spacer()
-                                    
-                                    VStack(alignment: .trailing, spacing: 4) {
-                                        Text("Local Time")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text(getLocalTime(for: homeBase))
-                                            .font(.title3)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(.blue)
-                                    }
+                                    .padding()
+                                    .background(Color(.systemBackground))
+                                    .cornerRadius(8)
                                 }
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
                                 
-                                // Second Home Base Time
                                 if !secondHomeBase.isEmpty {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
@@ -219,7 +239,7 @@ struct UserSettings: View {
                                         }
                                     }
                                     .padding()
-                                    .background(Color(.systemGray6))
+                                    .background(Color(.systemBackground))
                                     .cornerRadius(8)
                                 }
                             }
@@ -234,7 +254,14 @@ struct UserSettings: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.large)
-
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                            .font(.title2)
+                    }
+                }
+            }
             .sheet(isPresented: $showingHomeBasePicker) {
                 AirportPickerView(
                     selectedAirport: $homeBase,
@@ -256,11 +283,64 @@ struct UserSettings: View {
                     airlines: AirportsAndAirlines.airlines
                 )
             }
+            .sheet(isPresented: $showingSettings) {
+                SettingsPopupView(autoSaveFlights: $autoSaveFlights)
+            }
         }
     }
     
     private func getLocalTime(for airportCode: String) -> String {
         return TimeUtilities.getLocalTime(for: airportCode)
+    }
+}
+
+// Settings Popup View
+struct SettingsPopupView: View {
+    @Binding var autoSaveFlights: Bool
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            List {
+                // Data Management
+                Section("Data Management") {
+                    Toggle("Auto-save Flights", isOn: $autoSaveFlights)
+                    
+                    Button("Clear All Data") {
+                        clearAllData()
+                    }
+                    .foregroundColor(.red)
+                }
+                
+                // About
+                Section("About") {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text("1.0.0")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Link("UK CAA Website", destination: URL(string: "https://www.caa.co.uk")!)
+                    
+                    Link("Flight Time Limitations Guide", destination: URL(string: "https://www.caa.co.uk/commercial-industry/airspace/air-traffic-control/air-traffic-services/")!)
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func clearAllData() {
+        // Implementation for clearing all data
+        // This would show a confirmation alert first
     }
 }
 
