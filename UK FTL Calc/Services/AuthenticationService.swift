@@ -291,6 +291,36 @@ class AuthenticationService: ObservableObject {
         // This will be implemented when we add profile management
         // For now, just mark as authenticated
     }
+    
+    func updateUserMetadata(_ metadata: [String: String]) async {
+        guard let user = currentUser else { return }
+        
+        do {
+            // Convert string metadata to AnyJSON format for Supabase
+            let anyJSONMetadata: [String: AnyJSON] = metadata.mapValues { AnyJSON.string($0) }
+            
+            // Update user metadata in Supabase
+            let updatedUser = try await supabase.auth.update(user: UserAttributes(data: anyJSONMetadata))
+            
+            // Update local user object
+            currentUser = updatedUser
+            
+            // Post notification to trigger UI update
+            NotificationCenter.default.post(name: .authenticationStateChanged, object: nil)
+        } catch {
+            print("DEBUG: Failed to update user metadata: \(error)")
+            // You could add error handling here if needed
+        }
+    }
+    
+    func resetPassword(email: String) async throws {
+        do {
+            try await supabase.auth.resetPasswordForEmail(email)
+        } catch {
+            print("DEBUG: Failed to send password reset email: \(error)")
+            throw error
+        }
+    }
 }
 
 
