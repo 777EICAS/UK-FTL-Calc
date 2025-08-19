@@ -22,90 +22,34 @@ struct HomeBaseSection: View {
                     .fontWeight(.semibold)
                 
                 Spacer()
-                
-                Button(action: {
-                    viewModel.initializeEditingHomeBases()
-                    viewModel.showingHomeBaseEditor = true
-                }) {
-                    HStack(spacing: 3) {
-                        Image(systemName: "pencil.circle")
-                            .foregroundColor(.blue)
-                            .font(.caption)
-                        Text("Tap to edit")
-                            .foregroundColor(.blue)
-                            .font(.caption)
-                    }
-                }
             }
             
             VStack(spacing: 6) {
                 // Primary Home Base
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Primary")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        
-                        Text(viewModel.currentHomeBase)
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.primary)
-                        
-                        if let airport = AirportsAndAirlines.airports.first(where: { $0.0 == viewModel.currentHomeBase }) {
-                            Text(airport.1)
+                Button(action: {
+                    viewModel.initializeEditingHomeBases()
+                    viewModel.showingHomeBaseEditor = true
+                }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Primary")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 3) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                        Text("UTC +1")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(4)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-                
-                // Secondary Home Base
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Secondary")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        
-                        if viewModel.currentSecondHomeBase.isEmpty {
-                            Text("Not set")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text(viewModel.currentSecondHomeBase)
+                            
+                            Text(viewModel.currentHomeBase)
                                 .font(.headline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.primary)
                             
-                            if let airport = AirportsAndAirlines.airports.first(where: { $0.0 == viewModel.currentSecondHomeBase }) {
+                            if let airport = AirportsAndAirlines.airports.first(where: { $0.0 == viewModel.currentHomeBase }) {
                                 Text(airport.1)
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
                         }
-                    }
-                    
-                    Spacer()
-                    
-                    if !viewModel.currentSecondHomeBase.isEmpty {
+                        
+                        Spacer()
+                        
                         HStack(spacing: 3) {
                             Image(systemName: "clock")
                                 .font(.caption2)
@@ -117,17 +61,71 @@ struct HomeBaseSection: View {
                         .padding(.vertical, 2)
                         .background(Color(.systemGray6))
                         .cornerRadius(4)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(8)
+                
+                // Secondary Home Base
+                Button(action: {
+                    viewModel.initializeEditingHomeBases()
+                    viewModel.showingHomeBaseEditor = true
+                }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Secondary")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            
+                            if viewModel.currentSecondHomeBase.isEmpty {
+                                Text("Not set")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text(viewModel.currentSecondHomeBase)
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                
+                                if let airport = AirportsAndAirlines.airports.first(where: { $0.0 == viewModel.currentSecondHomeBase }) {
+                                    Text(airport.1)
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
                         
-                        Button(action: {
-                            viewModel.editingSecondHomeBase = ""
-                            viewModel.manuallyUpdateHomeBases()
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.red)
-                                .font(.caption)
+                        Spacer()
+                        
+                        if !viewModel.currentSecondHomeBase.isEmpty {
+                            HStack(spacing: 3) {
+                                Image(systemName: "clock")
+                                    .font(.caption2)
+                                Text("UTC +1")
+                                    .font(.caption2)
+                            }
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(4)
+                            
+                            Button(action: {
+                                viewModel.editingSecondHomeBase = ""
+                                viewModel.manuallyUpdateHomeBases()
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                                    .font(.caption)
+                            }
                         }
                     }
                 }
+                .buttonStyle(PlainButtonStyle())
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(Color.green.opacity(0.1))
