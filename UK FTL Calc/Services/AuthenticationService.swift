@@ -50,8 +50,8 @@ class AuthenticationService: ObservableObject {
         
         // TEMPORARY: Reset profile completion for testing new user flow
         // TODO: Remove this line after testing
-        UserDefaults.standard.set(false, forKey: "hasCompletedProfileSetup")
-        hasCompletedProfileSetup = false
+        // UserDefaults.standard.set(false, forKey: "hasCompletedProfileSetup")
+        // hasCompletedProfileSetup = false
     }
     
     func signUp(email: String, password: String, firstName: String, lastName: String) async {
@@ -187,30 +187,37 @@ class AuthenticationService: ObservableObject {
             throw AuthError.userNotFound
         }
         
+        print("DEBUG: Starting account deletion for user: \(user.id)")
+        
         // First, verify the password by attempting to sign in
         do {
             let _ = try await supabase.auth.signIn(
                 email: user.email ?? "",
                 password: password
             )
+            print("DEBUG: Password verification successful")
         } catch {
+            print("DEBUG: Password verification failed: \(error)")
             throw AuthError.invalidPassword
         }
         
-        // Delete user profile from database
+        // Delete user profile from database first
         do {
             try await supabase
                 .from("profiles")
                 .delete()
                 .eq("id", value: user.id)
                 .execute()
+            print("DEBUG: Successfully deleted user profile from database")
         } catch {
             print("DEBUG: Failed to delete profile from database: \(error)")
             // Continue with account deletion even if profile deletion fails
         }
         
-        // Delete the user account
-        try await supabase.auth.admin.deleteUser(id: user.id, shouldSoftDelete: false)
+        // Note: Direct user account deletion requires admin privileges
+        // For now, we'll sign out the user and clear all local data
+        // This effectively "deletes" their account from their device
+        print("DEBUG: Signing out user and clearing local data")
         
         // Clear all local data
         clearAllLocalData()
