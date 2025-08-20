@@ -18,9 +18,6 @@ struct UserSettings: View {
     @State private var showingSecondHomeBasePicker = false
     @State private var showingAirlinePicker = false
     @State private var showingSettings = false
-    @State private var showingDeleteAccountSheet = false
-    @State private var showingEditNameSheet = false
-    @State private var showingResetPasswordSheet = false
     
     var body: some View {
         NavigationView {
@@ -375,33 +372,99 @@ struct UserSettings: View {
                         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     }
                     
-                    // Save Profile Button
-                    VStack(spacing: 12) {
-                        Button(action: {
-                            // Profile data is automatically saved via @AppStorage
-                            // Show a brief confirmation
-                            // You could add a toast notification here if desired
-                        }) {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                Text("Profile Saved")
-                                    .fontWeight(.semibold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.green)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
+
+                    
+                    Spacer(minLength: 50)
+                }
+                .padding()
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                            .font(.title2)
+                    }
+                }
+            }
+            .sheet(isPresented: $showingHomeBasePicker) {
+                AirportPickerView(
+                    selectedAirport: $homeBase,
+                    title: "Select Primary Home Base",
+                    airports: AirportsAndAirlines.airports
+                )
+            }
+            .sheet(isPresented: $showingSecondHomeBasePicker) {
+                AirportPickerView(
+                    selectedAirport: $secondHomeBase,
+                    title: "Select Second Home Base",
+                    airports: AirportsAndAirlines.airports
+                )
+            }
+            .sheet(isPresented: $showingAirlinePicker) {
+                AirlinePickerView(
+                    selectedAirline: $airline,
+                    title: "Select Airline",
+                    airlines: AirportsAndAirlines.airlines
+                )
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsPopupView(autoSaveFlights: $autoSaveFlights)
+            }
+        }
+    }
+    
+    private func getLocalTime(for airportCode: String) -> String {
+        return TimeUtilities.getLocalTime(for: airportCode)
+    }
+}
+
+// Settings Popup View
+struct SettingsPopupView: View {
+    @Binding var autoSaveFlights: Bool
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var authService: AuthenticationService
+    @State private var showingDeleteAccountSheet = false
+    @State private var showingEditNameSheet = false
+    @State private var showingResetPasswordSheet = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Data Management Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "gear")
+                                .foregroundColor(.blue)
+                                .font(.title3)
+                            
+                            Text("Data Management")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
                         }
-                        .disabled(homeBase.isEmpty)
                         
-                        Text("Your profile settings are automatically saved")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+                        Toggle("Auto-save Flights", isOn: $autoSaveFlights)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        
+                        Button("Clear All Data") {
+                            clearAllData()
+                        }
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.red, lineWidth: 1)
+                        )
+                        .cornerRadius(12)
                     }
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(Color(.systemBackground))
                     .cornerRadius(12)
                     .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     
@@ -497,9 +560,9 @@ struct UserSettings: View {
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Email Address")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.primary)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
                                     
                                     Text(email)
                                         .font(.caption)
@@ -719,41 +782,62 @@ struct UserSettings: View {
                     .cornerRadius(12)
                     .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     
+                    // About Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
+                                .font(.title3)
+                            
+                            Text("About")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                        }
+                        
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Version")
+                                Spacer()
+                                Text("1.0.0")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                            
+                            Link("UK CAA Website", destination: URL(string: "https://www.caa.co.uk")!)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
+                            
+                            Link("Flight Time Limitations Guide", destination: URL(string: "https://www.caa.co.uk/commercial-industry/airspace/air-traffic-control/air-traffic-services/")!)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    
                     Spacer(minLength: 50)
                 }
                 .padding()
             }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
-                            .font(.title2)
+                    Button("Done") {
+                        dismiss()
                     }
                 }
-            }
-            .sheet(isPresented: $showingHomeBasePicker) {
-                AirportPickerView(
-                    selectedAirport: $homeBase,
-                    title: "Select Primary Home Base",
-                    airports: AirportsAndAirlines.airports
-                )
-            }
-            .sheet(isPresented: $showingSecondHomeBasePicker) {
-                AirportPickerView(
-                    selectedAirport: $secondHomeBase,
-                    title: "Select Second Home Base",
-                    airports: AirportsAndAirlines.airports
-                )
-            }
-            .sheet(isPresented: $showingAirlinePicker) {
-                AirlinePickerView(
-                    selectedAirline: $airline,
-                    title: "Select Airline",
-                    airlines: AirportsAndAirlines.airlines
-                )
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsPopupView(autoSaveFlights: $autoSaveFlights)
             }
             .sheet(isPresented: $showingDeleteAccountSheet) {
                 DeleteAccountSheet()
@@ -767,55 +851,6 @@ struct UserSettings: View {
             }
             .sheet(isPresented: $showingResetPasswordSheet) {
                 ResetPasswordSheet()
-            }
-        }
-    }
-    
-    private func getLocalTime(for airportCode: String) -> String {
-        return TimeUtilities.getLocalTime(for: airportCode)
-    }
-}
-
-// Settings Popup View
-struct SettingsPopupView: View {
-    @Binding var autoSaveFlights: Bool
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            List {
-                // Data Management
-                Section("Data Management") {
-                    Toggle("Auto-save Flights", isOn: $autoSaveFlights)
-                    
-                    Button("Clear All Data") {
-                        clearAllData()
-                    }
-                    .foregroundColor(.red)
-                }
-                
-                // About
-                Section("About") {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Link("UK CAA Website", destination: URL(string: "https://www.caa.co.uk")!)
-                    
-                    Link("Flight Time Limitations Guide", destination: URL(string: "https://www.caa.co.uk/commercial-industry/airspace/air-traffic-control/air-traffic-services/")!)
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
             }
         }
     }
