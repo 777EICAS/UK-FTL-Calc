@@ -12,6 +12,7 @@ struct UserSettings: View {
     @AppStorage("homeBase") private var homeBase: String = ""
     @AppStorage("secondHomeBase") private var secondHomeBase: String = ""
     @AppStorage("airline") private var airline: String = ""
+    @AppStorage("crewType") private var crewType: String = "Pilot"
     @AppStorage("autoSaveFlights") private var autoSaveFlights = true
     @State private var showingHomeBasePicker = false
     @State private var showingSecondHomeBasePicker = false
@@ -31,7 +32,7 @@ struct UserSettings: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Pilot Profile")
+                                    Text(crewType == "Pilot" ? "Pilot Profile" : "Cabin Crew Profile")
                                         .font(.title2)
                                         .fontWeight(.bold)
                                         .foregroundColor(.blue)
@@ -88,6 +89,70 @@ struct UserSettings: View {
                         .cornerRadius(12)
                         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     }
+                    
+                    // Crew Type Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "person.2.fill")
+                                .foregroundColor(.blue)
+                                .font(.title3)
+                            
+                            Text("Crew Type")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Select your role")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            HStack(spacing: 12) {
+                                Button(action: { crewType = "Pilot" }) {
+                                    HStack {
+                                        Image(systemName: crewType == "Pilot" ? "checkmark.circle.fill" : "circle")
+                                            .foregroundColor(crewType == "Pilot" ? .blue : .secondary)
+                                        Text("Pilot")
+                                            .fontWeight(crewType == "Pilot" ? .semibold : .regular)
+                                            .foregroundColor(crewType == "Pilot" ? .primary : .secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(crewType == "Pilot" ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(crewType == "Pilot" ? Color.blue : Color.clear, lineWidth: 2)
+                                    )
+                                }
+                                
+                                Button(action: { crewType = "Cabin Crew" }) {
+                                    HStack {
+                                        Image(systemName: crewType == "Cabin Crew" ? "checkmark.circle.fill" : "circle")
+                                            .foregroundColor(crewType == "Cabin Crew" ? .blue : .secondary)
+                                        Text("Cabin Crew")
+                                            .fontWeight(crewType == "Cabin Crew" ? .semibold : .regular)
+                                            .foregroundColor(crewType == "Cabin Crew" ? .primary : .secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(crewType == "Cabin Crew" ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(crewType == "Cabin Crew" ? Color.blue : Color.clear, lineWidth: 2)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     
                     // Home Base Section
                     VStack(alignment: .leading, spacing: 16) {
@@ -543,6 +608,111 @@ struct UserSettings: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+                    
+                    // Regulatory Information Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "doc.text.fill")
+                                .foregroundColor(.blue)
+                                .font(.title3)
+                            
+                            Text("Regulatory Information")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                        }
+                        
+                        VStack(spacing: 12) {
+                            // Critical Disclaimer
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.red)
+                                        .font(.caption)
+                                    Text("Critical Notice")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.red)
+                                }
+                                
+                                Text("This app provides FTL calculations based on the developer's interpretation of UK CAA regulations. It is NOT official UK CAA guidance.")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .padding(12)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                            )
+                            
+                            // Regulation Sources
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "book.fill")
+                                        .foregroundColor(.blue)
+                                        .font(.caption)
+                                    Text("Official Sources")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.blue)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("• UK CAA: www.caa.co.uk")
+                                    Text("• EU OPS Regulations")
+                                    Text("• CAP 371 Documentation")
+                                    Text("• Your airline's operations manual")
+                                }
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                            }
+                            .padding(12)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                            )
+                            
+                            // App Version Info
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "info.circle.fill")
+                                        .foregroundColor(.green)
+                                        .font(.caption)
+                                    Text("App Information")
+                                        .font(.caption)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.green)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("• Based on UK CAA regulations as of 2025")
+                                    Text("• Regulations may change - verify current versions")
+                                    Text("• This app may not reflect latest updates")
+                                }
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.leading)
+                            }
+                            .padding(12)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                            )
+                        }
                     }
                     .padding()
                     .background(Color(.systemBackground))

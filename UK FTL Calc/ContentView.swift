@@ -40,6 +40,10 @@ struct ContentView: View {
     @AppStorage("homeBase") private var homeBase: String = "LHR"
     @AppStorage("secondHomeBase") private var secondHomeBase: String = ""
     
+    // Regulatory disclaimer state
+    @AppStorage("hasAcceptedRegulatoryDisclaimer") private var hasAcceptedDisclaimer = false
+    @State private var showingRegulatoryDisclaimer = false
+    
     var body: some View {
         Group {
             // Debug info
@@ -48,61 +52,70 @@ struct ContentView: View {
             
             if authService.isAuthenticated {
                 if authService.hasCompletedProfileSetup {
-                    // Main app content - user is logged in and has completed profile setup
-                    TabView(selection: $selectedTab) {
-                        // Manual Calc Tab
-                        ManualCalcView()
-                            .tabItem {
-                                Image(systemName: "pencil.and.outline")
-                                    .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
-                                Text("Manual Calc")
+                    // Check if user has accepted regulatory disclaimer
+                    if !hasAcceptedDisclaimer {
+                        // Show regulatory disclaimer modal
+                        RegulatoryDisclaimerSheet(isPresented: $showingRegulatoryDisclaimer)
+                            .onAppear {
+                                showingRegulatoryDisclaimer = true
                             }
-                            .tag(0)
-                        
-                        // Main FTL Calculator Tab
-                        mainCalculatorView
-                            .tabItem {
-                                Image(systemName: "airplane")
-                                    .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
-                                Text("FTL Calculator")
-                            }
-                            .tag(1)
-                        
-                        // Calendar Tab
-                        CalendarView()
-                            .tabItem {
-                                Image(systemName: "calendar")
-                                    .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
-                                Text("Calendar")
-                            }
-                            .tag(2)
-                        
-                        // Profile Tab
-                        UserSettings()
-                            .tabItem {
-                                Image(systemName: "person.circle")
-                                    .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
-                                Text("Profile")
-                            }
-                            .tag(3)
-                    }
-                    .accentColor(.blue)
-                    .onAppear {
-                        // Custom tab bar styling with background for better visibility
-                        let appearance = UITabBarAppearance()
-                        appearance.configureWithDefaultBackground()
-                        appearance.backgroundColor = UIColor.systemBackground
-                        
-                        // Set the tab bar appearance
-                        UITabBar.appearance().standardAppearance = appearance
-                        UITabBar.appearance().scrollEdgeAppearance = appearance
-                        
-                        // Add subtle shadow for floating effect
-                        UITabBar.appearance().layer.shadowColor = UIColor.black.cgColor
-                        UITabBar.appearance().layer.shadowOffset = CGSize(width: 0, height: -2)
-                        UITabBar.appearance().layer.shadowRadius = 8
-                        UITabBar.appearance().layer.shadowOpacity = 0.1
-                        UITabBar.appearance().layer.masksToBounds = false
+                    } else {
+                        // Main app content - user is logged in and has completed profile setup
+                        TabView(selection: $selectedTab) {
+                            // Manual Calc Tab
+                            ManualCalcView()
+                                .tabItem {
+                                    Image(systemName: "pencil.and.outline")
+                                        .environment(\.symbolVariants, selectedTab == 0 ? .fill : .none)
+                                    Text("Manual Calc")
+                                }
+                                .tag(0)
+                            
+                            // Main FTL Calculator Tab
+                            mainCalculatorView
+                                .tabItem {
+                                    Image(systemName: "airplane")
+                                        .environment(\.symbolVariants, selectedTab == 1 ? .fill : .none)
+                                    Text("FTL Calculator")
+                                }
+                                .tag(1)
+                            
+                            // Calendar Tab
+                            CalendarView()
+                                .tabItem {
+                                    Image(systemName: "calendar")
+                                        .environment(\.symbolVariants, selectedTab == 2 ? .fill : .none)
+                                    Text("Calendar")
+                                }
+                                .tag(2)
+                            
+                            // Profile Tab
+                            UserSettings()
+                                .tabItem {
+                                    Image(systemName: "person.circle")
+                                        .environment(\.symbolVariants, selectedTab == 3 ? .fill : .none)
+                                    Text("Profile")
+                                }
+                                .tag(3)
+                        }
+                        .accentColor(.blue)
+                        .onAppear {
+                            // Custom tab bar styling with background for better visibility
+                            let appearance = UITabBarAppearance()
+                            appearance.configureWithDefaultBackground()
+                            appearance.backgroundColor = UIColor.systemBackground
+                            
+                            // Set the tab bar appearance
+                            UITabBar.appearance().standardAppearance = appearance
+                            UITabBar.appearance().scrollEdgeAppearance = appearance
+                            
+                            // Add subtle shadow for floating effect
+                            UITabBar.appearance().layer.shadowColor = UIColor.black.cgColor
+                            UITabBar.appearance().layer.shadowOffset = CGSize(width: 0, height: -2)
+                            UITabBar.appearance().layer.shadowRadius = 8
+                            UITabBar.appearance().layer.shadowOpacity = 0.1
+                            UITabBar.appearance().layer.masksToBounds = false
+                        }
                     }
                 } else {
                     // First-time user - show profile completion view
@@ -617,6 +630,9 @@ struct ContentView: View {
                         }
                     }
                 }
+                
+                // Regulatory Disclaimer Banner
+                GuidanceDisclaimerBanner()
                 
                 // Status Badge
                 HStack {
@@ -1371,6 +1387,31 @@ struct ContentView: View {
                     .cornerRadius(8)
                 }
             }
+            
+            // Regulatory Disclaimer Below Results
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                    Text("Important Notice")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.orange)
+                }
+                
+                Text("These results are estimates for planning purposes only. Always verify compliance with official UK CAA regulations and your airline's policies before operating.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(12)
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+            )
         }
     }
     

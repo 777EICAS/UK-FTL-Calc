@@ -302,6 +302,33 @@ struct FDPResultsSection: View {
                 .padding(.vertical, 12)
                 .background(Color.blue.opacity(0.1))
                 .cornerRadius(12)
+                
+                // Regulatory Disclaimer Below Results
+                if viewModel.hasCalculated {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption)
+                            Text("Important Notice")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+                        }
+                        
+                        Text("These results are estimates for planning purposes only. Always verify compliance with official UK CAA regulations and your airline's policies before operating.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .padding(12)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                    )
+                }
             }
         }
         .padding()

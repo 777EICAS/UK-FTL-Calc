@@ -47,6 +47,9 @@ struct ManualCalcView: View {
             .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
                     }
                     
+                    // Regulatory Disclaimer Banner
+                    GuidanceDisclaimerBanner()
+                    
                     // Home Bases Section
                     HomeBaseSection(viewModel: viewModel)
                     
@@ -67,6 +70,9 @@ struct ManualCalcView: View {
                     
                     // Calculate Button Section
                     VStack(spacing: 16) {
+                        // Regulatory Notice Above Calculate Button
+                        InfoDisclaimerBanner()
+                        
                         // Calculate Button
                         Button(action: {
                             viewModel.performCalculation()

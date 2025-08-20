@@ -82,7 +82,8 @@ class AuthenticationService: ObservableObject {
             errorMessage = "Account created successfully! Please check your email and click the confirmation link before signing in."
             
         } catch {
-            errorMessage = error.localizedDescription
+            print("DEBUG: Sign up failed: \(error)")
+            errorMessage = "Failed to create account: \(error.localizedDescription)"
         }
         
         isLoading = false
@@ -214,10 +215,23 @@ class AuthenticationService: ObservableObject {
             // Continue with account deletion even if profile deletion fails
         }
         
-        // Note: Direct user account deletion requires admin privileges
-        // For now, we'll sign out the user and clear all local data
-        // This effectively "deletes" their account from their device
-        print("DEBUG: Signing out user and clearing local data")
+        // Now delete the user from Supabase Auth using admin client
+        do {
+            let adminClient = SupabaseConfig.shared.adminClient
+            try await adminClient.auth.admin.deleteUser(id: user.id)
+            print("DEBUG: Successfully deleted user from Supabase Auth")
+        } catch {
+            print("DEBUG: Failed to delete user from Supabase Auth: \(error)")
+            // If admin deletion fails, we'll still sign out the user
+        }
+        
+        // Sign out the user
+        do {
+            try await supabase.auth.signOut()
+            print("DEBUG: Successfully signed out user")
+        } catch {
+            print("DEBUG: Failed to sign out user: \(error)")
+        }
         
         // Clear all local data
         clearAllLocalData()
@@ -281,10 +295,14 @@ class AuthenticationService: ObservableObject {
             "created_at": ISO8601DateFormatter().string(from: Date())
         ]
         
+        // Use upsert to handle cases where the profile might already exist
+        // This can happen if a user deletes their account and then signs up again
         try await supabase
             .from("profiles")
-            .insert(profile)
+            .upsert(profile)
             .execute()
+        
+        print("DEBUG: Successfully created/updated user profile for user: \(userId)")
     }
     
     private func loadUserProfile(userId: UUID) async {
@@ -293,7 +311,7 @@ class AuthenticationService: ObservableObject {
     }
     
     func updateUserMetadata(_ metadata: [String: String]) async {
-        guard let user = currentUser else { return }
+        guard currentUser != nil else { return }
         
         do {
             // Convert string metadata to AnyJSON format for Supabase

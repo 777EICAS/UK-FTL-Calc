@@ -5,6 +5,7 @@ struct ProfileCompletionView: View {
     @AppStorage("homeBase") private var homeBase: String = ""
     @AppStorage("secondHomeBase") private var secondHomeBase: String = ""
     @AppStorage("airline") private var airline: String = ""
+    @AppStorage("crewType") private var crewType: String = "Pilot"
     
     @State private var showingHomeBasePicker = false
     @State private var showingSecondHomeBasePicker = false
@@ -42,6 +43,61 @@ struct ProfileCompletionView: View {
                     
                     // Profile Setup Form
                     VStack(spacing: 20) {
+                        // Crew Type Section
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Crew Type")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Select your role *")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+                                
+                                HStack(spacing: 12) {
+                                    Button(action: { crewType = "Pilot" }) {
+                                        HStack {
+                                            Image(systemName: crewType == "Pilot" ? "checkmark.circle.fill" : "circle")
+                                                .foregroundColor(crewType == "Pilot" ? .blue : .secondary)
+                                            Text("Pilot")
+                                                .fontWeight(crewType == "Pilot" ? .semibold : .regular)
+                                                .foregroundColor(crewType == "Pilot" ? .primary : .secondary)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(crewType == "Pilot" ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(crewType == "Pilot" ? Color.blue : Color.clear, lineWidth: 2)
+                                        )
+                                    }
+                                    
+                                    Button(action: { crewType = "Cabin Crew" }) {
+                                        HStack {
+                                            Image(systemName: crewType == "Cabin Crew" ? "checkmark.circle.fill" : "circle")
+                                                .foregroundColor(crewType == "Cabin Crew" ? .blue : .secondary)
+                                            Text("Cabin Crew")
+                                                .fontWeight(crewType == "Cabin Crew" ? .semibold : .regular)
+                                                .foregroundColor(crewType == "Cabin Crew" ? .primary : .secondary)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(crewType == "Cabin Crew" ? Color.blue.opacity(0.1) : Color(.systemGray6))
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(crewType == "Cabin Crew" ? Color.blue : Color.clear, lineWidth: 2)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        
                         // Home Base Section
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Home Base")

@@ -134,6 +134,10 @@ struct CalendarView: View {
                 .padding()
                 .background(Color(.systemBackground))
                 
+                // Regulatory Disclaimer Banner
+                GuidanceDisclaimerBanner()
+                    .padding(.horizontal)
+                
                 // Calendar Grid
                 VStack(spacing: 0) {
                     // Day headers
