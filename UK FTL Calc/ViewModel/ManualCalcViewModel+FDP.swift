@@ -151,7 +151,7 @@ extension ManualCalcViewModel {
         var adjustedFDP = baseFDP
         if hasInFlightRest && restFacilityType != .none {
             let inFlightRestFDP = calculateInFlightRestExtension()
-            adjustedFDP = inFlightRestFDP
+            adjustedFDP = inFlightRestFDP  // Replace base limit with in-flight rest limit
         }
         
         // Split duty extension is now included in calculateMaxFDP()
@@ -212,11 +212,29 @@ extension ManualCalcViewModel {
     }
     
     func calculateInFlightRestExtension() -> Double {
-        // Extended FDP cannot be combined with in-flight rest extensions
-        if hasExtendedFDP {
-            return 0.0
-        }
+    // Extended FDP cannot be combined with in-flight rest extensions
+    if hasExtendedFDP {
+        return 0.0
+    }
+    
+    // NEW: Check if cabin crew with in-flight rest
+    print("DEBUG: calculateInFlightRestExtension - crewType: '\(crewType)', hasInFlightRest: \(hasInFlightRest), restFacilityType: \(restFacilityType)")
+    
+    if crewType == "Cabin Crew" && hasInFlightRest && restFacilityType != .none {
+        print("DEBUG: calculateInFlightRestExtension - Cabin crew path selected")
+        // Use Table 5 data from separate file for cabin crew
+        let maxAllowedFDP = CabinCrewInFlightRestTable.lookupMaxFDP(
+            restFacilityType: restFacilityType,
+            restTimeAvailable: inFlightRestTimeAvailable
+        )
+        print("DEBUG: calculateInFlightRestExtension - Table 5 maxAllowedFDP: \(maxAllowedFDP)h")
         
+        // For cabin crew, return the maximum allowed FDP from Table 5 (replacement limit)
+        print("DEBUG: calculateInFlightRestExtension - Cabin crew maxAllowedFDP: \(maxAllowedFDP)h")
+        return maxAllowedFDP
+    } else {
+        print("DEBUG: calculateInFlightRestExtension - Pilot path selected")
+        // EXISTING PILOT LOGIC - COMPLETELY UNCHANGED
         let restClass: String
         switch restFacilityType {
         case .class1:
@@ -229,12 +247,15 @@ extension ManualCalcViewModel {
             return 0.0
         }
         
-        return RegulatoryTableLookup.lookupInflightRestExtension(
+        let pilotExtension = RegulatoryTableLookup.lookupInflightRestExtension(
             restClass: restClass,
             additionalCrew: additionalCrewMembers,
             isLongFlight: isLongFlight
         )
+        print("DEBUG: calculateInFlightRestExtension - Pilot extension calculated: \(pilotExtension)h")
+        return pilotExtension
     }
+}
     
     // MARK: - Latest Off/On Blocks Time Calculations
     func calculateLatestOffBlocksTime(withCommandersDiscretion: Bool) -> Date {

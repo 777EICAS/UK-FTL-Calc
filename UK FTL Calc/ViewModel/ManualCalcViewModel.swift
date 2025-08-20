@@ -25,6 +25,9 @@ class ManualCalcViewModel: ObservableObject {
         }
     }
     
+    // NEW: Crew Type Access (for cabin crew functionality)
+    @AppStorage("crewType") var crewType: String = "Pilot"
+    
     // MARK: - Home Base Change Tracking
     @Published var homeBaseChanged = false
     @Published var currentHomeBase: String = "LHR"
@@ -119,6 +122,12 @@ class ManualCalcViewModel: ObservableObject {
     @Published var additionalCrewMembers: Int = 1 { // 1 or 2 additional crew
         didSet { clearCache() }
     }
+    
+    // NEW: Cabin Crew In-Flight Rest Time Selection
+    @Published var inFlightRestTimeAvailable: Double = 1.5 { // Default 1:30 hours
+        didSet { clearCache() }
+    }
+    @Published var showingInFlightRestTimePicker = false
     
     // MARK: - Block Time State
     @Published var estimatedBlockTime: Double = 0.0 { // Estimated flight time in hours
